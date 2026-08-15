@@ -1,0 +1,84 @@
+# Game Design Document Example
+## Project: "Chronicles of Aethelgard"
+
+### Overview
+A fantasy RPG where players explore the ancient kingdom of Aethelgard, uncovering secrets of a lost civilization while navigating political intrigue between rival noble houses.
+
+### Characters
+
+#### 1. Elara Windrider
+- **Role**: Protagonist, Royal Scout
+- **Personality**: Curious, Brave, Loyal to the Crown
+- **Goals**: Uncover the truth about her parents' disappearance, protect the kingdom from internal threats
+- **Arc**: Starts as a novice scout, becomes a key figure in preventing a civil war
+
+#### 2. Lord Valerius Blackwood
+- **Role**: Antagonist, Head of House Blackwood
+- **Personality**: Ambitious, Cunning, Charismatic
+- **Goals**: Seize the throne, restore Blackwood family to power, eliminate rivals
+- **Arc**: Revealed to be manipulated by an ancient evil, faces redemption or destruction choice
+
+#### 3. Seraphina Moonshadow
+- **Role**: Mentor, Last of the Moon Druids
+- **Personality**: Wise, Mysterious, Protective of ancient knowledge
+- **Goals**: Preserve balance between nature and civilization, train Elara
+- **Arc**: Sacrifices herself to seal the ancient evil, or survives to guide new generation
+
+### Main Story Beats
+
+#### Act 1: The Scout's Calling
+1. Elara discovers strange artifacts in the Whispering Woods
+2. Reports to the Royal Court, meets Lord Blackwood
+3. Assigned to investigate ancient ruins with Seraphina
+4. Uncovers first clue about parents' disappearance
+
+#### Act 2: Shadows of the Past
+1. Political tensions rise between noble houses
+2. Elara learns Blackwood family's dark secret
+3. Seraphina reveals the true nature of the ancient threat
+4. Elara must choose: loyalty to crown or pursuit of truth
+
+#### Act 3: The Final Convergence
+1. Ancient evil awakens, threatening entire kingdom
+2. Elara unites rival houses against common enemy
+3. Final confrontation at the Heart of Aethelgard
+4. Multiple endings based on player choices:
+   - Peaceful resolution: Evil sealed, kingdom united
+   - Sacrificial ending: Elara sacrifices herself
+   - Dark ending: Blackwood succeeds, becomes new ruler
+   - Balance ending: Ancient power harnessed for good
+
+### Branching Narrative Points
+
+#### Decision 1: The Blackwood Alliance
+- **Option A**: Trust Lord Blackwood's offer of alliance
+  - Gain political support, but risk betrayal
+  - Unlocks "Political Intrigue" branch
+- **Option B**: Reject alliance, work alone
+  - Maintain independence, harder challenges
+  - Unlocks "Lone Wolf" branch
+
+#### Decision 2: Ancient Knowledge
+- **Option A**: Share discoveries with Seraphina
+  - Gain druidic powers, understand ancient magic
+  - Unlocks "Druidic Path" branch
+- **Option B**: Keep knowledge secret
+  - Maintain human abilities, rely on skill
+  - Unlocks "Mortal Path" branch
+
+#### Decision 3: Final Confrontation
+- **Option A**: Confront ancient evil directly
+  - Epic battle, potential for heroic sacrifice
+  - Leads to Sacrificial or Heroic endings
+- **Option B**: Use political manipulation
+  - Turn houses against each other, clever victory
+  - Leads to Political or Cunning endings
+- **Option C**: Seek balance and understanding
+  - Attempt to harmonize with ancient power
+  - Leads to Balance or Enlightenment endings
+
+### Technical Notes
+- Each character has 3-5 major decision points
+- Story branches reconverge at key plot moments
+- Endings are consequential based on accumulated choices
+- Supporting characters have their own mini-arcs that intersect with main story

@@ -1,0 +1,17 @@
+Binaries/
+Intermediate/
+DerivedDataCache/
+Saved/
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.sln
+*.suo
+*.xcodeproj
+*.xcworkspace
+.vs/
+.vscode/
+
+ThirdParty/Models/*.gguf
+ThirdParty/Models/*.bin

@@ -1,0 +1,3307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OmegaTeller</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#060608;--surface:#0c0c10;--surface2:#131318;--border:#1c1c24;
+  --accent:#c8c8d0;--accent2:#e8e8f0;--accent-glow:rgba(200,200,210,.12);
+  --green:#40c090;--red:#d04050;--amber:#c0a030;
+  --text:#c0c0c8;--text2:#505060;--text3:#383844;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --node-border:#222230;--merge:#50a0a0;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:var(--font);color:var(--text);}
+#toolbar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border-bottom:1px solid var(--border);z-index:100;position:relative;}
+#toolbar .brand{font-weight:700;font-size:13px;color:var(--accent2);letter-spacing:2px;margin-right:10px;}
+#toolbar button{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;transition:all .15s;font-family:var(--font);}
+#toolbar button:hover{background:#222230;border-color:#333340;color:#fff;}
+#toolbar button.primary{background:#2a2a34;border-color:#3a3a48;color:#fff;}
+#toolbar button.primary:hover{background:#333340;}
+#toolbar button:disabled{opacity:.35;cursor:not-allowed;}
+#toolbar .sep{width:1px;height:22px;background:var(--border);margin:0 3px;}
+#toolbar .spacer{flex:1;}
+#toolbar .status{font-size:10px;color:var(--text2);}
+#char-tabs{display:flex;align-items:center;gap:0;padding:0 14px;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;}
+.char-tab{padding:7px 18px;font-size:11px;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);transition:all .15s;white-space:nowrap;}
+.char-tab:hover{color:var(--text);background:var(--surface2);}
+.char-tab.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.char-tab .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
+#add-char-btn{padding:7px 10px;font-size:13px;cursor:pointer;color:var(--text2);background:none;border:none;font-family:var(--font);}
+#add-char-btn:hover{color:var(--accent2);}
+#canvas-wrap{position:relative;flex:1;overflow:hidden;background:var(--bg);}
+#canvas-wrap svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible;}
+#nodes-layer{position:absolute;top:0;left:0;z-index:2;transform-origin:0 0;}
+#svg-layer{transform-origin:0 0;}
+#canvas-wrap::before{content:'';position:absolute;inset:0;z-index:0;background-image:radial-gradient(circle,rgba(255,255,255,.04) .5px,transparent .5px);background-size:36px 36px;}
+.omega-node{position:absolute;width:220px;border-radius:10px;cursor:grab;background:var(--surface);border:1.5px solid var(--node-border);box-shadow:0 2px 12px rgba(0,0,0,.7);transition:box-shadow .2s,border-color .2s;user-select:none;z-index:10;}
+.omega-node:hover{border-color:#2a2a38;}
+.omega-node.selected{border-color:var(--accent);box-shadow:0 0 16px var(--accent-glow);}
+.omega-node.dragging{cursor:grabbing;z-index:100;opacity:.88;}
+.omega-node.merged{box-shadow:0 0 10px rgba(80,160,160,0.25);}
+.omega-node.merged-visual{animation:merge-pulse 0.6s ease-out;}
+.omega-node.being-merged{opacity:0.3;transform:scale(0.8);transition:all 0.3s ease-out;}
+@keyframes merge-pulse{0%{transform:scale(1);}40%{transform:scale(1.12);}100%{transform:scale(1);}}
+.omega-node.drop-target{border:2.5px dashed var(--amber)!important;box-shadow:0 0 20px rgba(192,160,48,.4)!important;background:rgba(192,160,48,0.06)!important;}
+.omega-node.repopulating{box-shadow:0 0 20px rgba(160,112,208,.3);animation:pulse-repop .8s ease-in-out infinite alternate;}
+@keyframes pulse-repop{from{box-shadow:0 0 12px rgba(160,112,208,.2);}to{box-shadow:0 0 24px rgba(160,112,208,.45);}}
+.node-header{padding:8px 12px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:7px;}
+.node-header .type-icon{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 5px currentColor;}
+.node-header .type-label{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.merge-badge{display:none;gap:3px;align-items:center;flex-shrink:0;}
+.merge-badge .mbdot{width:6px;height:6px;border-radius:50%;border:1px solid rgba(255,255,255,.3);}
+.node-body{padding:8px 12px 10px;}
+.node-body textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-size:11px;resize:none;min-height:30px;overflow:hidden;font-family:var(--font);line-height:1.4;transition:border-color .15s;box-sizing:border-box;}
+.node-body textarea:focus{border-color:var(--accent);outline:none;}
+.node-body textarea::placeholder{color:var(--text3);}
+.node-footer{padding:4px 12px 8px;}
+.end-export-btn{width:100%;background:rgba(208,64,80,0.12);border:1px solid rgba(208,64,80,0.3);color:#d04050;padding:4px 8px;border-radius:5px;font-size:10px;cursor:pointer;font-family:var(--font);transition:all .15s;letter-spacing:.5px;}
+.end-export-btn:hover{background:rgba(208,64,80,0.25);border-color:#d04050;}
+.port{width:12px;height:12px;border-radius:50%;position:absolute;cursor:crosshair;border:2px solid var(--text2);background:var(--bg);z-index:20;transition:all .12s;}
+.port.port-in{left:-6px;top:50%;transform:translateY(-50%);}
+.port.port-out{right:-6px;top:50%;transform:translateY(-50%);}
+.port:hover,.port.active{background:var(--green);border-color:var(--green);transform:translateY(-50%) scale(1.4);}
+.connection{fill:none;stroke:#3a3a48;stroke-width:2;opacity:.7;pointer-events:stroke;cursor:pointer;transition:opacity .15s,stroke .15s;}
+.connection:hover{opacity:1;stroke-width:2.5;stroke:#606070;}
+.connection.temp{stroke-dasharray:5 3;opacity:.6;stroke:var(--green);}
+#ctx-menu{display:none;position:fixed;z-index:500;min-width:220px;max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.8);font-size:12px;color:var(--text);}
+.ctx-header{padding:8px 14px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);}
+.ctx-item{padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s;}
+.ctx-item:hover{background:var(--surface2);}
+.ctx-item .cdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.ctx-item.danger{color:var(--red);}
+.ctx-item.merge-action{color:var(--merge);}
+.ctx-item.repop-action{color:#a070d0;}
+.ctx-item.split-action{color:var(--amber);}
+.ctx-sep{height:1px;background:var(--border);margin:2px 0;}
+.ctx-char-header{padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:600;font-size:11px;color:var(--text);border-top:1px solid var(--border);}
+.ctx-char-header:hover{background:var(--surface2);}
+.ctx-char-nodes{display:none;padding-left:10px;}
+.ctx-char-nodes.open{display:block;}
+#parse-panel{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:560px;max-width:90vw;max-height:80vh;background:var(--surface);border:1px solid var(--border);border-radius:12px;z-index:200;box-shadow:0 16px 50px rgba(0,0,0,.85);overflow:hidden;}
+#parse-panel .panel-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+#parse-panel .panel-header h2{font-size:14px;font-weight:600;color:var(--accent2);}
+#parse-panel .panel-body{padding:18px;overflow-y:auto;max-height:60vh;}
+#parse-panel textarea{width:100%;height:200px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;font-size:12px;font-family:var(--font);line-height:1.5;resize:vertical;}
+#parse-panel textarea:focus{border-color:var(--accent);outline:none;}
+#hint-bar{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);padding:5px 16px;border-radius:16px;font-size:10px;color:var(--text2);z-index:50;pointer-events:none;border:1px solid var(--border);}
+kbd{background:var(--surface2);padding:1px 4px;border-radius:3px;font-size:9px;font-family:var(--font);}
+#app{display:flex;flex-direction:column;width:100%;height:100%;}
+
+.omega-node.cross-target{
+  opacity:0.2;
+  border:1.5px dashed #404050!important;
+}
+.omega-node.cross-target.drop-target{
+  opacity:0.8!important;
+  border:2.5px dashed var(--amber)!important;
+  box-shadow:0 0 20px rgba(192,160,48,.4)!important;
+  background:rgba(192,160,48,0.06)!important;
+}
+
+#overlay-bg{
+  display:none;
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:190;
+}
+
+#parse-panel .panel-footer{
+  padding:12px 18px;
+  border-top:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+}
+#parse-panel .panel-footer button{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:7px 16px;border-radius:6px;font-size:12px;cursor:pointer;font-family:var(--font);transition:all .15s;
+}
+#parse-panel .panel-footer button:hover{background:#222230;border-color:#333340;color:#fff;}
+#parse-panel .panel-footer button.primary{background:#2a2a34;border-color:#3a3a48;color:#fff;}
+#parse-panel .panel-footer button.primary:hover{background:#333340;}
+#parse-panel .panel-footer button:disabled{opacity:.35;cursor:not-allowed;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <span class="brand">OMEGA TELLER</span><div class="sep"></div>
+    <button id="btn-undo" onclick="undo()" disabled title="Ctrl+Z">&#8630; Undo</button>
+    <button id="btn-redo" onclick="redo()" disabled title="Ctrl+Y">&#8631; Redo</button><div class="sep"></div>
+    <button onclick="showParsePanel()">Import GDD</button>
+    <button class="primary" onclick="exportFullStory()">&#8615; Export Story</button><div class="sep"></div>
+    <button onclick="addNodeUI('Start')">+ Start</button>
+    <button onclick="addNodeUI('Event')">+ Event</button>
+    <button onclick="addNodeUI('Decision')">+ Decision</button>
+    <button onclick="addNodeUI('End')">+ End</button><div class="sep"></div>
+    <button onclick="autoLayout()">Auto Layout</button>
+    <button onclick="fitView()">Fit View</button>
+    <button id="btn-coherence" class="primary" onclick="toggleCoherence()" title="La IA rearmoniza la historia tras cada cambio">&#9903; Coherence: ON</button>
+    <button onclick="clearGraph()">Clear</button>
+    <div class="spacer"></div><span class="status" id="status">Nodes: 0</span>
+  </div>
+  <div id="char-tabs"><div id="add-char-btn" onclick="addCharacterTab()">+</div></div>
+  <div id="canvas-wrap">
+    <svg id="svg-layer">
+      <defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#3a3a48"/></marker></defs>
+      <g id="connections-g"></g>
+      <path id="temp-conn" class="connection temp" style="display:none;"/>
+    </svg>
+    <div id="nodes-layer"></div>
+    <div id="overlay-bg" onclick="hideParsePanel()"></div>
+    <div id="parse-panel">
+      <div class="panel-header"><h2>Import Game Design Document</h2><button onclick="hideParsePanel()" style="background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;">&times;</button></div>
+      <div class="panel-body"><textarea id="gdd-text" placeholder="Paste your GDD text here..."></textarea></div>
+      <div class="panel-footer"><button onclick="loadExample()">Load Example</button><button class="primary" onclick="parseGDD()">Parse &amp; Generate</button></div>
+    </div>
+    <div id="hint-bar"><kbd>Ctrl+Z</kbd> undo · <kbd>Ctrl+Y</kbd> redo · <kbd>Drag onto node</kbd> merge · <kbd>Port→Port</kbd> connect · <kbd>Mid/Shift</kbd> pan · <kbd>Scroll</kbd> zoom · <kbd>Right-click</kbd> menu · <kbd>Del</kbd> delete</div>
+  </div>
+</div>
+<div id="ctx-menu"></div>
+<script>
+// STATE
+
+var AI_CONFIG = {
+  provider: 'local',
+  // Servidor local incluido en el plugin (llama.cpp), también sirve Ollama,
+  // LM Studio o cualquier endpoint OpenAI-compatible. Se sobreescribe desde
+  // Config/OmegaTellerConfig.ini vía applyAIConfig() al cargar la página.
+  localEndpoint: 'http://127.0.0.1:17811/v1/chat/completions',
+  localModel: 'local',
+  // Claves opcionales de APIs remotas: configurar en OmegaTellerConfig.ini
+  // ([OmegaAI] GeminiKey= / GroqKey=), nunca escribirlas aquí.
+  geminiKey: '',
+  geminiModel: 'gemini-2.0-flash-lite',
+  groqKey: '',
+  groqModel: 'llama-3.1-8b-instant'
+};
+
+// Llamada desde C++ (SOmegaModernEditor) con la config del .ini del plugin
+function applyAIConfig(cfg) {
+  try {
+    if (typeof cfg === 'string') cfg = JSON.parse(cfg);
+    for (var k in cfg) {
+      if (cfg[k] !== null && cfg[k] !== undefined && cfg[k] !== '') AI_CONFIG[k] = cfg[k];
+    }
+    if (cfg && cfg.localEndpoint === '') AI_CONFIG.localEndpoint = ''; // sin backend local disponible
+    console.log('[AI] Config aplicada. Local: ' + (AI_CONFIG.localEndpoint || 'no') +
+                ' | Gemini: ' + (AI_CONFIG.geminiKey ? 'sí' : 'no') +
+                ' | Groq: ' + (AI_CONFIG.groqKey ? 'sí' : 'no'));
+  } catch (e) { console.error('[AI] applyAIConfig:', e); }
+}
+
+// Presupuesto de prompt del servidor local (ContextSize 4096 en el .ini menos la
+// respuesta reservada). Por encima de esto el modelo local trunca la entrada y
+// devuelve texto incoherente, así que ni se le pregunta.
+var LOCAL_MAX_PROMPT_CHARS = 6000;
+
+// opts.validate(result) -> bool. Si una respuesta no valida, se prueba el
+// siguiente proveedor en lugar de dar por buena la primera basura que llegue.
+async function callAI(prompt, expectJSON, opts) {
+  opts = opts || {};
+  var validate = opts.validate || function() { return true; };
+  var accepted = null;
+
+  function consider(raw, provider) {
+    if (!raw) return false;
+    var out = expectJSON ? tryFixJSON(raw) : String(raw).trim();
+    if (!out) { console.log('[AI] ' + provider + ': respuesta ilegible, probando siguiente'); return false; }
+    if (!validate(out)) { console.log('[AI] ' + provider + ': respuesta rechazada por validación, probando siguiente'); return false; }
+    console.log('[AI] ' + provider + ' OK');
+    accepted = out;
+    return true;
+  }
+
+  var responseText = '';
+
+  // INTENTO 0: modelo local (llama.cpp incluido en el plugin / Ollama / LM Studio)
+  var skipLocal = opts.skipLocal || prompt.length > LOCAL_MAX_PROMPT_CHARS;
+  if (AI_CONFIG.localEndpoint && skipLocal) {
+    console.log('[AI] Local omitido: prompt de ' + prompt.length +
+                ' caracteres supera el contexto del modelo local (' + LOCAL_MAX_PROMPT_CHARS + ')');
+  }
+  if (AI_CONFIG.localEndpoint && !skipLocal) {
+    try {
+      var resp = await fetch(AI_CONFIG.localEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: AI_CONFIG.localModel || 'local',
+          messages: [
+            { role: 'system', content: 'You are a narrative-design assistant embedded in a story-graph editor. Follow the user instructions EXACTLY. Always answer in ' + langName() + ', the language of the source text, whatever language these instructions are written in. Never add markdown fences or commentary around the requested output.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 2048
+        })
+      });
+      if (resp.ok) {
+        var data = await resp.json();
+        responseText = (data && data.choices && data.choices[0] && data.choices[0].message)
+                       ? data.choices[0].message.content : '';
+        if (consider(responseText, 'Local')) return accepted;
+        responseText = '';
+      } else {
+        console.log('[AI] Local fail: ' + resp.status);
+      }
+    } catch (e) {
+      console.log('[AI] Local error: ' + (e.message || e));
+    }
+  }
+
+  // INTENTO 1: Gemini
+  if (!responseText && AI_CONFIG.geminiKey) {
+    try {
+      var url = 'https://generativelanguage.googleapis.com/v1beta/models/'
+              + AI_CONFIG.geminiModel + ':generateContent?key=' + AI_CONFIG.geminiKey;
+      var resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+        })
+      });
+      if (resp.ok) {
+        var data = await resp.json();
+        responseText = (data && data.candidates && data.candidates[0] &&
+                        data.candidates[0].content && data.candidates[0].content.parts &&
+                        data.candidates[0].content.parts[0])
+                       ? data.candidates[0].content.parts[0].text : '';
+        if (consider(responseText, 'Gemini')) return accepted;
+        responseText = '';
+      } else {
+        console.log('[AI] Gemini fail: ' + resp.status);
+      }
+    } catch(e) {
+      console.log('[AI] Gemini error: ' + (e.message || e));
+    }
+  }
+
+  // INTENTO 2: Groq
+  if (!responseText && AI_CONFIG.groqKey) {
+    console.log('[AI] Trying Groq...');
+    try {
+      var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + AI_CONFIG.groqKey
+        },
+        body: JSON.stringify({
+          model: AI_CONFIG.groqModel || 'llama-3.1-8b-instant',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 2048
+        })
+      });
+      if (resp.ok) {
+        var data = await resp.json();
+        responseText = (data && data.choices && data.choices[0] && data.choices[0].message)
+                       ? data.choices[0].message.content : '';
+        if (consider(responseText, 'Groq')) return accepted;
+        responseText = '';
+      } else {
+        console.log('[AI] Groq fail: ' + resp.status);
+      }
+    } catch(e) {
+      console.log('[AI] Groq error: ' + (e.message || e));
+    }
+  }
+
+  // Ningún proveedor produjo una respuesta utilizable
+  return null;
+}
+
+function tryFixJSON(raw) {
+  if (!raw) return null;
+  var text = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  // Intento directo
+  try { return JSON.parse(text); } catch(e) {}
+
+  // Buscar el objeto JSON dentro del texto
+  var start = text.indexOf('{');
+  if (start < 0) return null;
+  var sub = text.substring(start);
+
+  // Intento con el substring
+  try { return JSON.parse(sub); } catch(e) {}
+
+  // Truncado: quitar la última propiedad incompleta y cerrar brackets
+  var fixed = sub;
+  // Quitar último string incompleto o propiedad cortada
+  fixed = fixed.replace(/,"[^"]*"?:?\s*"?[^"]*$/, '');
+  fixed = fixed.replace(/,\s*"[^"]*$/, '');
+  fixed = fixed.replace(/,\s*$/, '');
+
+  // Contar aperturas no cerradas (fuera de strings)
+  var opens = { '{': 0, '[': 0 };
+  var inStr = false, esc = false;
+  for (var i = 0; i < fixed.length; i++) {
+    var c = fixed[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\') { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === '{') opens['{']++;
+    if (c === '}') opens['{']--;
+    if (c === '[') opens['[']++;
+    if (c === ']') opens['[']--;
+  }
+  while (opens['['] > 0) { fixed += ']'; opens['[']--; }
+  while (opens['{'] > 0) { fixed += '}'; opens['{']--; }
+
+  try {
+    var result = JSON.parse(fixed);
+    console.log('[AI] JSON recovered from truncated response');
+    return result;
+  } catch(e) {
+    console.log('[AI] JSON recovery failed: ' + e.message);
+    return null;
+  }
+}
+var nodes={},connections={},nextId=0,selected={};
+var characters={};
+var activeChar=null;
+var cam={x:0,y:0,z:1};
+var drag={active:false,node:null,ox:0,oy:0,startX:0,startY:0};
+var conn={active:false,fromId:null,targetId:null};
+var pan={active:false,sx:0,sy:0};
+var NODE_W=220;
+var nodesEl=document.getElementById('nodes-layer');
+var svgEl=document.getElementById('svg-layer');
+var connG=document.getElementById('connections-g');
+var tempConn=document.getElementById('temp-conn');
+var ctxMenu=document.getElementById('ctx-menu');
+var typeColors={Start:'#40c090',Event:'#808090',Decision:'#c0a030',End:'#d04050'};
+var charColors=['#6090b0','#60a080','#b07060','#a09050','#7070a0','#a060a0','#50a0a0','#50a070','#a08060','#6080a0'];
+var charIdx=0;
+
+var narrativePerson = 'third';
+var narrativeLanguage = 'es';
+// POV por personaje: { "NombrePersonaje": "first"|"second"|"third" }
+var charNarrativePOV = {};
+
+// IDIOMA, REQUISITO: todo lo generado (nodos, etiquetas, fusiones,
+// repoblados y prompts) conserva el idioma del texto importado.
+var LANG_MARKERS = {
+  es: /\b(el|los|las|una|unos|unas|del|pero|cuando|había|habían|era|eran|más|muy|también|desde|hacia|ella|ellos|entonces|porque|aunque|sus|con|para|años|noche|nada|nadie)\b/g,
+  pt: /\b(não|você|então|ele|ela|também|até|já|muito|nós|dos|das|isso|aqui|dele|dela|foi|estão|coisa|noite)\b/g,
+  en: /\b(the|and|of|to|in|is|was|were|that|with|for|his|her|their|they|have|has|had|from|this|but|not|you|about|would)\b/g,
+  fr: /\b(les|des|une|est|dans|pour|qui|avec|plus|elle|mais|leur|être|tout|était|nous|vous|cette|comme|sur)\b/g,
+  it: /\b(gli|della|degli|perché|sono|essere|molto|anche|quando|questo|quella|nella|dei|delle|era|erano|suo|sua|come)\b/g,
+  de: /\b(der|die|das|und|ist|nicht|ein|eine|mit|auf|für|sich|aber|als|von|zu|dass|war|waren|dem|den)\b/g
+};
+var LANG_CHAR_HINTS = { es: /[ñ¿¡]/, pt: /[ãõç]/, fr: /[êàùœ]/, it: /\b(gli|perché)\b/, de: /[ßäöü]/ };
+var langDetectedFromSource = false;   // true en cuanto se importa un texto
+var LANG_NAMES = { es:'español', pt:'português', en:'English', fr:'français', it:'italiano', de:'Deutsch' };
+
+// Textos generados por el editor, por idioma. Nunca se mezclan idiomas.
+var L10N = {
+  es: { start:'Inicio', end:'Final', decision:'Decisión', event:'Evento', meanwhile:'Mientras tanto,',
+        splitsOff:'se separa:', continuesAlone:'sigue su propio camino',
+        beats:['avanza','reacciona ante lo ocurrido','observa las consecuencias','toma una decisión',
+               'encuentra algo inesperado','se enfrenta a un obstáculo','se prepara para lo que viene',
+               'llega a un punto de inflexión','descubre la verdad','cambia de rumbo'] },
+  pt: { start:'Início', end:'Fim', decision:'Decisão', event:'Evento', meanwhile:'Enquanto isso,',
+        splitsOff:'separa-se:', continuesAlone:'segue o seu próprio caminho',
+        beats:['avança','reage ao ocorrido','observa as consequências','toma uma decisão',
+               'encontra algo inesperado','enfrenta um obstáculo','prepara-se para o que vem',
+               'chega a um ponto de virada','descobre a verdade','muda de rumo'] },
+  en: { start:'Start', end:'End', decision:'Decision', event:'Event', meanwhile:'Meanwhile,',
+        splitsOff:'splits off:', continuesAlone:'goes their own way',
+        beats:['moves forward','reacts to what happened','sees the consequences','makes a decision',
+               'finds something unexpected','faces an obstacle','prepares for what is coming',
+               'reaches a turning point','uncovers the truth','changes course'] },
+  fr: { start:'Début', end:'Fin', decision:'Décision', event:'Événement', meanwhile:'Pendant ce temps,',
+        splitsOff:'se sépare :', continuesAlone:'suit son propre chemin',
+        beats:['avance','réagit à ce qui est arrivé','observe les conséquences','prend une décision',
+               'trouve quelque chose d\'inattendu','affronte un obstacle','se prépare à la suite',
+               'atteint un tournant','découvre la vérité','change de cap'] },
+  it: { start:'Inizio', end:'Fine', decision:'Decisione', event:'Evento', meanwhile:'Nel frattempo,',
+        splitsOff:'si separa:', continuesAlone:'segue la propria strada',
+        beats:['avanza','reagisce a quanto accaduto','osserva le conseguenze','prende una decisione',
+               'trova qualcosa di inatteso','affronta un ostacolo','si prepara a ciò che verrà',
+               'raggiunge un punto di svolta','scopre la verità','cambia rotta'] },
+  de: { start:'Anfang', end:'Ende', decision:'Entscheidung', event:'Ereignis', meanwhile:'Unterdessen,',
+        splitsOff:'trennt sich ab:', continuesAlone:'geht den eigenen Weg',
+        beats:['geht weiter','reagiert auf das Geschehene','sieht die Folgen','trifft eine Entscheidung',
+               'findet etwas Unerwartetes','stellt sich einem Hindernis','bereitet sich auf das Kommende vor',
+               'erreicht einen Wendepunkt','entdeckt die Wahrheit','ändert den Kurs'] }
+};
+
+function L(key) {
+  var table = L10N[narrativeLanguage] || L10N.en;
+  return (table[key] !== undefined) ? table[key] : (L10N.en[key] !== undefined ? L10N.en[key] : key);
+}
+
+function langName() { return LANG_NAMES[narrativeLanguage] || LANG_NAMES.en; }
+
+// Devuelve el código de idioma dominante de un texto ('es','en','pt','fr','it','de')
+function detectLanguage(text) {
+  if (!text) return narrativeLanguage;
+  var lower = String(text).toLowerCase();
+  var words = (lower.match(/[a-zà-ÿ']+/g) || []).length;
+  if (words < 8) return narrativeLanguage; // muestra demasiado corta para decidir
+  var best = null, bestScore = 0;
+  for (var code in LANG_MARKERS) {
+    var hits = (lower.match(LANG_MARKERS[code]) || []).length;
+    var score = hits / words;
+    if (LANG_CHAR_HINTS[code] && LANG_CHAR_HINTS[code].test(lower)) score *= 1.35;
+    if (score > bestScore) { bestScore = score; best = code; }
+  }
+  return best || narrativeLanguage;
+}
+
+// true si `sample` está en el mismo idioma que el texto importado
+function isSameLanguage(sample) {
+  if (!sample || sample.length < 40) return true; // sin evidencia suficiente, no bloqueamos
+  return detectLanguage(sample) === narrativeLanguage;
+}
+
+function detectNarrativeStyle(text) {
+  if (!text || text.length < 30) return;
+  var lower = text.toLowerCase();
+
+  narrativeLanguage = detectLanguage(text);
+  langDetectedFromSource = true;
+
+  // Detectar persona global
+  var first = (lower.match(/\b(yo|mi|mis|me|mí|estoy|tengo|hago|voy|soy|i\b|my|mine|myself)\b/g) || []).length;
+  var second = (lower.match(/\b(tú|tu\b|tus|te\b|ti\b|estás|tienes|haces|you\b|your|yours|yourself)\b/g) || []).length;
+
+  if (first > 4 && first > second * 2) narrativePerson = 'first';
+  else if (second > 4 && second > first * 2) narrativePerson = 'second';
+  else narrativePerson = 'third';
+
+  console.log('[OmegaTeller] Narrative style: ' + narrativePerson + ' person, lang=' + narrativeLanguage);
+  refreshAllNodeHeaders();
+}
+
+// Reetiqueta las cabeceras ya dibujadas cuando cambia el idioma detectado
+function refreshAllNodeHeaders() {
+  for (var k in nodes) { if (nodes[k]) updateNodeHeader(nodes[k]); }
+}
+
+function detectCharacterPOV(charName, textSample) {
+  // Detecta la persona narrativa específica para un personaje dado
+  // mirando las frases donde aparece su nombre o pronombres cercanos
+  if (!textSample || textSample.length < 10) return narrativePerson;
+  var lower = textSample.toLowerCase();
+  var first  = (lower.match(/\b(yo|me\b|mi\b|mis\b|mío|mía|estoy|tengo|hago|voy|soy|i\b|my\b|mine|myself)\b/g) || []).length;
+  var second = (lower.match(/\b(tú|tu\b|tus|te\b|ti\b|estás|tienes|haces|you\b|your\b|yours|yourself)\b/g) || []).length;
+  var third  = (lower.match(/\b(él|ella|ellos|ellas|su\b|sus\b|le\b|lo\b|la\b|se\b|he\b|she\b|they\b|his\b|her\b|their\b|him\b|them\b)\b/g) || []).length;
+  // Quien domine con diferencia clara
+  var max = Math.max(first, second, third);
+  if (max < 2) return narrativePerson; // no hay evidencia clara, usar global
+  if (first === max && first > second * 1.5 && first > third * 1.5) return 'first';
+  if (second === max && second > first * 1.5 && second > third * 1.5) return 'second';
+  return 'third';
+}
+
+function getNarrativePrompt(charName) {
+  // Si hay POV específico guardado para este personaje, usarlo
+  var person = (charName && charNarrativePOV[charName]) ? charNarrativePOV[charName] : narrativePerson;
+  var lang = narrativeLanguage;
+  var map = {
+    'first-es':  'Narra en PRIMERA persona singular (yo hago, yo veo, yo siento). El sujeto es "yo", nunca el nombre del personaje.',
+    'second-es': 'Narra en SEGUNDA persona singular (tú haces, tú ves). El sujeto es "tú", nunca el nombre del personaje.',
+    'third-es':  'Narra en TERCERA persona (él/ella hace, ve). Usa el nombre del personaje o "él/ella", nunca "yo" ni "tú".',
+    'first-en':  'Write in FIRST person singular (I do, I see, I feel). Subject is "I", never the character name.',
+    'second-en': 'Write in SECOND person (you do, you see). Subject is "you", never the character name.',
+    'third-en':  'Write in THIRD person (he/she does, sees). Use the character name or he/she, never "I" or "you".'
+  };
+  // Para idiomas sin plantilla propia se usa la inglesa, pero la salida debe ir
+  // siempre en el idioma del texto original (langName()).
+  return map[person + '-' + lang] || map[person + '-en'] || map['third-en'];
+}
+
+function registerCharacterPOV(charName, beats) {
+  // Registra el POV detectado a partir de los beats iniciales de un personaje
+  if (!charName || !beats || !beats.length) return;
+  var sample = beats.slice(0, 5).join(' ');
+  charNarrativePOV[charName] = detectCharacterPOV(charName, sample);
+  console.log('[OmegaTeller] POV de ' + charName + ': ' + charNarrativePOV[charName]);
+}
+/* dropTarget eliminado - no queremos indicadores visuales */
+/* flag para evitar doble merge */
+var _mergeExecuted=false;
+
+// HELPERS: visibilidad de nodo según timeline activa
+function belongsToTimeline(n,charName){
+  if(!n||!charName)return false;
+  if(n.char===charName)return true;
+  if(n.mergedChars&&n.mergedChars.indexOf(charName)>=0)return true;
+  return false;
+}
+
+// UNDO / REDO
+var editorHistory={undoStack:[],redoStack:[],MAX_HISTORY:100,_recording:true};
+
+function snapshotState() {
+  var snap = { nodes: {}, connections: {}, nextId: nextId, characters: {}, charIdx: charIdx, activeChar: activeChar };
+  for (var k in nodes) {
+    var n = nodes[k];
+    snap.nodes[k] = {
+      id: n.id, type: n.type, name: n.name, x: n.x, y: n.y, char: n.char,
+      outputs: n.outputs.slice(), inputs: n.inputs.slice(),
+      mergedChars: n.mergedChars ? n.mergedChars.slice() : null,
+      originalChar: n.originalChar || null,
+      originalSourceNid: n.originalSourceNid || null,
+      preMergeText: n.preMergeText || null,
+      mergeSourceInfo: n.mergeSourceInfo ? JSON.parse(JSON.stringify(n.mergeSourceInfo)) : null,
+      locked: !!n.locked
+    };
+  }
+  for (var k in connections) snap.connections[k] = { from: connections[k].from, to: connections[k].to };
+  for (var k in characters) snap.characters[k] = { name: characters[k].name, color: characters[k].color, nodeIds: characters[k].nodeIds.slice() };
+  return snap;
+}
+
+function pushUndo(label){
+  if(!editorHistory._recording)return;
+  editorHistory.undoStack.push({label:label||'action',state:snapshotState()});
+  if(editorHistory.undoStack.length>editorHistory.MAX_HISTORY)editorHistory.undoStack.shift();
+  editorHistory.redoStack=[];
+  updateUndoButtons();
+}
+
+function restoreState(snap){
+  editorHistory._recording=false;
+  // Reconstruir el grafo desde un snapshot no es una edición del autor
+  coherence.suppress++;
+  for(var k in connections)if(connections[k].el)connections[k].el.remove();
+  for(var k in nodes)if(nodes[k].el)nodes[k].el.remove();
+  nodes={};connections={};selected={};
+  document.querySelectorAll('.char-tab').forEach(function(t){t.remove();});
+  characters={};charIdx=snap.charIdx;activeChar=snap.activeChar;
+  for(var k in snap.characters){
+    var sc=snap.characters[k];
+    characters[k]={name:sc.name,color:sc.color,nodeIds:[]};
+    var tab=document.createElement('div');
+    tab.className='char-tab';tab.dataset.char=sc.name;
+    tab.innerHTML='<span class="dot" style="background:'+sc.color+'"></span>'+sc.name;
+    (function(cn,tb){tb.onclick=function(){switchCharacter(cn,tb);};})(sc.name,tab);
+    document.getElementById('char-tabs').insertBefore(tab,document.getElementById('add-char-btn'));
+    if(sc.name===activeChar)tab.classList.add('active');
+  }
+  nextId=snap.nextId;
+  for(var k in snap.nodes){
+    var sn=snap.nodes[k];
+    _origAddNode(sn.type,sn.name,sn.x,sn.y,sn.char,sn.id);
+    attachNodeContextMenu(nodes[sn.id].el,sn.id);
+    if(sn.mergedChars)markMerged(sn.id,sn.mergedChars);
+    if(sn.originalChar)nodes[sn.id].originalChar=sn.originalChar;
+    if(sn.originalSourceNid)nodes[sn.id].originalSourceNid=sn.originalSourceNid;
+    if(sn.preMergeText)nodes[sn.id].preMergeText=sn.preMergeText;
+    if(sn.mergeSourceInfo)nodes[sn.id].mergeSourceInfo=sn.mergeSourceInfo;
+    if(sn.locked)nodes[sn.id].locked=true;
+  }
+  for(var k in snap.characters)if(characters[k])characters[k].nodeIds=snap.characters[k].nodeIds.slice();
+  for(var k in snap.connections)connectNodesInternal(snap.connections[k].from,snap.connections[k].to);
+  /* Restaurar visibilidad correcta */
+  refreshVisibility();
+  updateAllConns();updateStatus();
+  coherence.suppress--;
+  editorHistory._recording=true;
+}
+
+function undo(){if(!editorHistory.undoStack.length)return;var e=editorHistory.undoStack.pop();editorHistory.redoStack.push({label:e.label,state:snapshotState()});restoreState(e.state);updateUndoButtons();}
+function redo(){if(!editorHistory.redoStack.length)return;var e=editorHistory.redoStack.pop();editorHistory.undoStack.push({label:e.label,state:snapshotState()});restoreState(e.state);updateUndoButtons();}
+function updateUndoButtons(){
+  var bu=document.getElementById('btn-undo'),br=document.getElementById('btn-redo');
+  if(bu)bu.disabled=!editorHistory.undoStack.length;
+  if(br)br.disabled=!editorHistory.redoStack.length;
+}
+
+// VISIBILITY, fuente única de verdad
+function refreshVisibility(){
+  for(var k in nodes){
+    var n=nodes[k];
+    n.el.style.display=(!activeChar||belongsToTimeline(n,activeChar))?'':'none';
+  }
+  for(var k in connections){
+    var c=connections[k];
+    var fa=nodes[c.from],fb=nodes[c.to];
+    c.el.style.display=(fa&&fb&&fa.el.style.display!=='none'&&fb.el.style.display!=='none')?'':'none';
+  }
+}
+
+// BRIDGE / CAMERA
+function send(a,d){console.log('OMEGA:'+a+':'+(d||''));}
+function applyCamera(){var t='translate('+cam.x+'px,'+cam.y+'px) scale('+cam.z+')';nodesEl.style.transform=t;svgEl.style.transform=t;}
+
+// PORT POSITIONS
+function getPortOut(n){var w=n.el.offsetWidth||NODE_W,h=n.el.offsetHeight||80;return{x:n.x+w,y:n.y+h/2};}
+function getPortIn(n){var h=n.el.offsetHeight||80;return{x:n.x,y:n.y+h/2};}
+
+// TEXT CLEANUP
+function cleanNodeText(t) {
+  if (!t) return '';
+  return String(t)
+    // etiqueta de hablante ("Elena: ...", "Tomás Vale: ..."), NUNCA una hora
+    // ni una frase corta acabada en dos puntos ("A las 03:17..." se conserva)
+    .replace(/^([A-ZÁÉÍÓÚÜÑ][^\s:.!?]{0,19}(?:\s[A-ZÁÉÍÓÚÜÑ][^\s:.!?]{0,19})?):\s+/, '')
+    // comillas envolventes: sólo si abren Y cierran, para no dejar huérfana la
+    // comilla de cierre de un diálogo citado dentro del beat
+    .replace(/^"([\s\S]*)"$/, '$1')
+    .replace(/^'([\s\S]*)'$/, '$1')
+    .replace(/^«([\s\S]*)»$/, '$1')
+    .replace(/^\d+[\.\)]\s+/, '')
+    .replace(/^[-*]\s+/, '')
+    .trim();
+}
+
+// COLOR UTILS
+function getComplementaryVividColor(colors){
+  if(!colors||!colors.length)return'#e060d0';
+  var rs=0,gs=0,bs=0,valid=0;
+  colors.forEach(function(hex){
+    var h=(hex||'').replace('#','');if(h.length!==6)return;
+    rs+=parseInt(h.slice(0,2),16);gs+=parseInt(h.slice(2,4),16);bs+=parseInt(h.slice(4,6),16);valid++;
+  });
+  if(!valid)return'#e060d0';
+  rs=Math.round(rs/valid);gs=Math.round(gs/valid);bs=Math.round(bs/valid);
+  var max=Math.max(rs,gs,bs),min=Math.min(rs,gs,bs),h=0,s=0,l=(max+min)/2/255;
+  if(max!==min){
+    var d=(max-min)/255;
+    s=l>0.5?d/(2-max/255-min/255):d/(max/255+min/255);
+    if(max===rs)h=((gs-bs)/(max-min))+(gs<bs?6:0);
+    else if(max===gs)h=((bs-rs)/(max-min))+2;
+    else h=((rs-gs)/(max-min))+4;
+    h/=6;
+  }
+  h=(h+0.3333)%1;s=Math.min(1,s*1.4+0.2);l=Math.max(0.45,Math.min(0.65,l));
+  function hue2rgb(p,q,t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
+  var q2=l<0.5?l*(1+s):l+s-l*s,p2=2*l-q2;
+  var rr=Math.round(hue2rgb(p2,q2,h+1/3)*255);
+  var gg=Math.round(hue2rgb(p2,q2,h)*255);
+  var bb=Math.round(hue2rgb(p2,q2,h-1/3)*255);
+  return'#'+[rr,gg,bb].map(function(v){return Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0');}).join('');
+}
+function hexToRgba(hex,a){var h=(hex||'').replace('#','');if(h.length!==6)return'rgba(80,160,160,'+a+')';return'rgba('+parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16)+','+a+')';}
+
+// NODE HEADER VISUAL UPDATE
+function updateNodeHeader(n){
+  if(!n||!n.el)return;
+  var hdr=n.el.querySelector('.node-header');
+  var icon=n.el.querySelector('.type-icon');
+  var lbl=n.el.querySelector('.type-label');
+  var badge=n.el.querySelector('.merge-badge');
+  var col;
+
+  if(n.mergedChars&&n.mergedChars.length>1){
+    // NODO FUSIONADO (Múltiples personajes)
+    col=getComplementaryVividColor(n.mergedChars.map(function(cn){return(characters[cn]&&characters[cn].color)||'#50a0a0';}));
+    lbl.textContent=n.mergedChars.join(' + ');
+    
+    badge.style.display='flex';badge.innerHTML='';
+    n.mergedChars.forEach(function(cn){
+      var ch=characters[cn];if(!ch)return;
+      var d=document.createElement('div');d.className='mbdot';d.style.background=ch.color;d.title=cn;badge.appendChild(d);
+    });
+    
+    // Color vivo para el fondo del header, texto e icono en blanco
+    hdr.style.color='#fff';
+    hdr.style.background=col;
+    icon.style.background='#fff';
+    icon.style.color='#fff';
+    icon.style.boxShadow='0 0 8px rgba(255,255,255,0.6)';
+    n.el.style.borderColor=col;
+    n.el.classList.add('merged');
+
+  } else if(n.originalChar&&n.originalChar!==n.char){
+    // NODO IMPORTADO (Aún no fusionado, pero de otro autor)
+    var origCh=characters[n.originalChar];
+    col=origCh?origCh.color:(typeColors[n.type]||'#808090');
+    lbl.textContent=n.originalChar;
+    
+    badge.style.display='flex';
+    badge.innerHTML='<div class="mbdot" style="background:'+col+';border:1px solid rgba(255,255,255,.5);width:9px;height:9px;" title="Imported from '+n.originalChar+'"></div>';
+    
+    hdr.style.color=col;
+    hdr.style.background='';
+    icon.style.background=col;
+    icon.style.color=col;
+    icon.style.boxShadow='0 0 5px currentColor';
+    n.el.style.borderColor=hexToRgba(col,0.7);
+    n.el.classList.remove('merged');
+
+  } else {
+    // NODO NORMAL
+    col=(n.char!=='all'&&characters[n.char])?characters[n.char].color:(typeColors[n.type]||typeColors.Event);
+    lbl.textContent=getNodeLabel(n.type,n.char,null);
+    
+    badge.style.display='none';badge.innerHTML='';
+    
+    hdr.style.color=col;
+    hdr.style.background=''; // Fondo transparente
+    icon.style.background=col;
+    icon.style.color=col;
+    icon.style.boxShadow='0 0 5px currentColor';
+    n.el.style.borderColor='';
+    n.el.classList.remove('merged');
+  }
+}
+
+// NODE CREATION
+function addNode(type,name,x,y,charName,id){
+  var nid=(id!==undefined)?id:nextId++;if(nid>=nextId)nextId=nid+1;
+  var nx=(x!=null)?x:200+Math.random()*400;
+  var ny=(y!=null)?y:100+Math.random()*300;
+  var cName=charName||activeChar||'all';
+  var el=document.createElement('div');
+  el.className='omega-node';el.id='n'+nid;
+  el.style.left=nx+'px';el.style.top=ny+'px';
+  var charCol=(cName!=='all'&&characters[cName])?characters[cName].color:(typeColors[type]||typeColors.Event);
+  var labelText=getNodeLabel(type,cName,null);
+  var endBtn=(type==='End')?'<div class="node-footer"><button class="end-export-btn" onclick="exportTimelineFromEnd('+nid+')">&#8615; Export timeline</button></div>':'';
+  el.innerHTML='<div class="node-header" style="color:'+charCol+'"><div class="type-icon" style="background:'+charCol+';color:'+charCol+'"></div><div class="type-label">'+labelText+'</div><div class="merge-badge" style="display:none;gap:3px;align-items:center;flex-shrink:0;"></div></div><div class="node-body"><textarea placeholder="Node content">'+(name||'')+'</textarea></div>'+endBtn+'<div class="port port-in" data-node="'+nid+'"></div><div class="port port-out" data-node="'+nid+'"></div>';
+
+  el.addEventListener('mousedown',function(e){
+    if(e.target.classList.contains('port')||e.target.tagName==='TEXTAREA'||e.target.classList.contains('end-export-btn'))return;
+    if(e.button!==0)return;
+    var n=nodes[nid];
+    drag.active=true;drag.node=n;
+    drag.ox=(e.clientX-cam.x)/cam.z-n.x;
+    drag.oy=(e.clientY-cam.y)/cam.z-n.y;
+    drag.startX=n.x;drag.startY=n.y;
+    _mergeExecuted=false;
+    if(!e.ctrlKey&&!selected[nid])clearSel();
+    selectNode(nid);el.classList.add('dragging');
+    e.stopPropagation();e.preventDefault();
+  });
+
+  el.querySelector('.port-out').addEventListener('mousedown',function(e){
+    conn.active=true;conn.fromId=nid;conn.targetId=null;
+    tempConn.style.display='block';this.classList.add('active');
+    e.stopPropagation();e.preventDefault();
+  });
+
+  var inp=el.querySelector('.port-in');
+  inp.addEventListener('mouseenter',function(){if(conn.active&&conn.fromId!==null&&conn.fromId!==nid){conn.targetId=nid;el.classList.add('conn-target');inp.classList.add('active');}});
+  inp.addEventListener('mouseleave',function(){if(conn.active){conn.targetId=null;el.classList.remove('conn-target');inp.classList.remove('active');}});
+  inp.addEventListener('mouseup',function(){if(conn.active&&conn.fromId!==null&&conn.fromId!==nid)connectNodes(conn.fromId,nid);});
+  el.addEventListener('mouseup',function(){if(conn.active&&conn.fromId!==null&&conn.fromId!==nid)connectNodes(conn.fromId,nid);});
+
+  var ta=el.querySelector('textarea');var _textTimer=null;
+  autoResizeTextarea(ta);
+  ta.addEventListener('input',function(){
+      autoResizeTextarea(ta);
+    nodes[nid].name=ta.value;send('NODE_TEXT',nid+':'+ta.value);
+    if(_textTimer)clearTimeout(_textTimer);
+    if(!ta._undoPushed){pushUndo('edit text');ta._undoPushed=true;}
+    _textTimer=setTimeout(function(){ta._undoPushed=false;},800);
+    // Lo que escribe el usuario es canon: se bloquea y la historia se
+    // re-armoniza a su alrededor en lugar de sobrescribirlo.
+    nodes[nid].locked=ta.value.trim().length>0;
+    requestCoherence('edit',[nid]);
+  });
+  ta.addEventListener('mousedown',function(e){e.stopPropagation();});
+
+  nodesEl.appendChild(el);
+  nodes[nid]={id:nid,type:type,name:name||'',x:nx,y:ny,el:el,char:cName,outputs:[],inputs:[],mergedChars:null,originalChar:null};
+  if(cName!=='all'&&characters[cName])characters[cName].nodeIds.push(nid);
+  updateNodeHeader(nodes[nid]);
+  /* Aplicar visibilidad correcta al crear */
+  if(activeChar&&!belongsToTimeline(nodes[nid],activeChar))el.style.display='none';
+  updateStatus();
+  send('NODE_ADD',type+':'+(name||'')+':'+nx+':'+ny);
+  return nid;
+}
+
+function getNodeLabel(type,charName,mergedChars){
+  // Las etiquetas siguen el idioma del texto importado (ver L10N / detectNarrativeStyle)
+  if(type==='Start')return L('start');
+  if(type==='End')return L('end');
+  if(type==='Decision')return L('decision');
+  if(mergedChars&&mergedChars.length>1)return mergedChars.join(' + ');
+  if(charName&&charName!=='all')return charName;
+  return L('event');
+}
+
+function addNodeUI(type){
+  if(!activeChar){alert('Create a character tab first.');return;}
+  pushUndo('add node');
+  var wrap=document.getElementById('canvas-wrap');
+  var cx=(wrap.clientWidth/2-cam.x)/cam.z,cy=(wrap.clientHeight/2-cam.y)/cam.z;
+  addNode(type,'',cx-NODE_W/2,cy-40,activeChar);
+}
+
+// SELECTION & DELETE
+function selectNode(id){selected[id]=true;if(nodes[id])nodes[id].el.classList.add('selected');}
+function deselectNode(id){delete selected[id];if(nodes[id])nodes[id].el.classList.remove('selected');}
+function clearSel(){for(var k in selected)deselectNode(k);}
+
+function deleteNode(id){
+  var n=nodes[id];if(!n)return;
+  // Al quitar un nodo del medio, la cadena se recose para que la timeline
+  // no quede partida; después se pide coherencia sobre la costura.
+  var healFrom=n.inputs.filter(function(p){return nodes[p]&&belongsToTimeline(nodes[p],n.char);});
+  var healTo=n.outputs.filter(function(o){return nodes[o]&&belongsToTimeline(nodes[o],n.char);});
+
+  n.el.remove();
+  if(n.char!=='all'&&characters[n.char]){var ci=characters[n.char].nodeIds.indexOf(id);if(ci>=0)characters[n.char].nodeIds.splice(ci,1);}
+  delete nodes[id];delete selected[id];
+  var rm=[];
+  for(var k in connections){var c=connections[k];if(c.from===id||c.to===id){c.el.remove();rm.push(k);}}
+  rm.forEach(function(k){delete connections[k];});
+
+  var touched=[];
+  suppressCoherence(function(){
+    healFrom.forEach(function(p){
+      healTo.forEach(function(o){
+        if(p!==o&&nodes[p]&&nodes[o]){connectNodes(p,o);touched.push(o);}
+      });
+    });
+  });
+  updateStatus();send('NODE_DEL',''+id);
+  requestCoherence('delete',touched.length?touched:healTo.concat(healFrom));
+}
+
+// CONNECTIONS
+function connectNodesInternal(fid,tid){
+  var key=fid+'-'+tid;
+  if(connections[key]||connections[tid+'-'+fid]||fid===tid)return;
+  var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.classList.add('connection');path.setAttribute('marker-end','url(#arrow)');
+  path.addEventListener('click',function(){pushUndo('delete link');deleteConnection(key);});
+  connG.appendChild(path);
+  connections[key]={from:fid,to:tid,el:path};
+  if(nodes[fid])nodes[fid].outputs.push(tid);
+  if(nodes[tid])nodes[tid].inputs.push(fid);
+  updateConn(key);
+}
+function connectNodes(fid,tid){
+  connectNodesInternal(fid,tid);send('CONN_ADD',fid+':'+tid);updateStatus();
+  // El destino pasa a leerse después de un origen nuevo: hay que rehacer el enlace
+  requestCoherence('connect',[tid]);
+}
+function deleteConnection(key){
+  var c=connections[key];if(!c)return;
+  var from=c.from,to=c.to;
+  c.el.remove();
+  if(nodes[from]){var i=nodes[from].outputs.indexOf(to);if(i>=0)nodes[from].outputs.splice(i,1);}
+  if(nodes[to]){var j=nodes[to].inputs.indexOf(from);if(j>=0)nodes[to].inputs.splice(j,1);}
+  delete connections[key];updateStatus();
+  // La cadena se ha partido: el trozo suelto necesita abrir por sí mismo
+  requestCoherence('disconnect',[from,to]);
+}
+function updateConn(key){
+  var c=connections[key];if(!c)return;
+  var a=nodes[c.from],b=nodes[c.to];if(!a||!b)return;
+  var p1=getPortOut(a),p2=getPortIn(b);
+  var dx=p2.x-p1.x, dy=p2.y-p1.y;
+  var cpx=Math.max(Math.abs(dx)*0.4, 60);
+  // Si el nodo destino está a la izquierda (conexión hacia atrás), curvar más
+  if(dx<0) cpx=Math.max(Math.abs(dx)*0.5+Math.abs(dy)*0.3, 80);
+  c.el.setAttribute('d','M'+p1.x+' '+p1.y+' C'+(p1.x+cpx)+' '+p1.y+','+(p2.x-cpx)+' '+p2.y+','+p2.x+' '+p2.y);
+}
+function updateAllConns(){for(var k in connections)updateConn(k);}
+
+function autoResizeTextarea(ta) {
+  if (!ta) return;
+  
+  ta.style.height = 'auto';                    // reset
+  var newHeight = Math.max(38, ta.scrollHeight); // mínimo 38px para que se vea bien
+  ta.style.height = newHeight + 'px';
+
+  // Forzar que el nodo padre también crezca
+  var node = ta.closest('.omega-node');
+  if (node) {
+    node.style.height = 'auto';   // importante para que se expanda
+  }
+}
+
+// FUSE (absorber fuente en destino, reconectar aristas)
+
+function fuseImportedBeat(targetId, importedId) {
+  var target = nodes[targetId];
+  var imported = nodes[importedId];
+  if (!target || !imported) return;
+
+  pushUndo('fuse imported beat');
+
+  var textA = (target.name || '').trim();
+  var textB = (imported.name || '').trim();
+
+  // El idioma sale de los propios nodos; nunca se decide "inglés o español"
+  var pairLang = detectLanguage(textA + ' ' + textB);
+  if (pairLang && !langDetectedFromSource) narrativeLanguage = pairLang;
+  var targetLang = langName();
+
+  function joinLiteral() {
+    if (!textA || !textB) return textA || textB;
+    return textA.replace(/\s*$/, '').replace(/([^.!?…])$/, '$1.') + ' ' + L('meanwhile') + ' ' + textB;
+  }
+
+  var mergePrompt =
+`You fuse two narrative events into ONE single, natural, fluent sentence (maximum 25 words).
+
+OUTPUT LANGUAGE (ABSOLUTE REQUIREMENT): both events are written in ${targetLang}.
+The fused sentence MUST be written in ${targetLang}, reusing their own words.
+Translating it is a failure, even though these instructions are in English.
+
+Event 1: ${textA}
+Event 2: ${textB}
+
+Rules (strict):
+- Return ONLY the fused sentence, in ${targetLang}.
+- No prefixes, no quotes, no explanations.
+- Do not add facts that are not in the two events.
+- Make it read as if it was always one original event.
+
+Fused sentence:`;
+
+  suppressCoherence(function() { fuseNodesIntoOne(targetId, importedId); });
+
+  function applyFused(text) {
+    var n = nodes[targetId];
+    if (!n) return false;
+    n.name = text;
+    var ta = n.el.querySelector('textarea');
+    if (ta) { ta.value = text; autoResizeTextarea(ta); }
+    send('NODE_TEXT', targetId + ':' + text);
+    return true;
+  }
+
+  callAI(mergePrompt, false, {
+    validate: function(txt) { return txt.length > 3 && isSameLanguage(txt); }
+  }).then(mergedText => {
+    var finalText = (mergedText && mergedText.trim().length > 3) ? mergedText.trim() : joinLiteral();
+    if (!applyFused(finalText)) return;
+    requestCoherence('fuse', [targetId]);
+  }).catch(() => {
+    if (applyFused(joinLiteral())) { autoLayout(); requestCoherence('fuse', [targetId]); }
+  });
+}
+function fuseNodesIntoOne(targetId, sourceId) {
+  var target = nodes[targetId], source = nodes[sourceId];
+  if (!target || !source || targetId === sourceId) return;
+  // Cirugía interna de aristas: la coherencia la pide quien llama, una vez,
+  // sobre el nodo resultante, no cada reconexión intermedia.
+  coherence.suppress++;
+  try { fuseNodesIntoOneInternal(targetId, sourceId); }
+  finally { coherence.suppress--; }
+}
+
+function fuseNodesIntoOneInternal(targetId, sourceId) {
+  var target = nodes[targetId], source = nodes[sourceId];
+  if (!target || !source || targetId === sourceId) return;
+
+  var charName = target.char;
+
+  // Recoger el nodo End del source ANTES de redirigir (puede quedar huérfano)
+  var sourceEndId = null;
+  (source.outputs || []).slice().forEach(function(oid) {
+    if (nodes[oid] && nodes[oid].type === 'End' && nodes[oid].char === charName) {
+      sourceEndId = oid;
+    }
+  });
+
+  // Redirigir entradas de source → target
+  (source.inputs || []).slice().forEach(function(fromId) {
+    if (fromId === targetId) return;
+    deleteConnection(fromId + '-' + sourceId);
+    connectNodesInternal(fromId, targetId);
+  });
+
+  // Redirigir salidas de source → target (excepto el End que manejaremos aparte)
+  (source.outputs || []).slice().forEach(function(toId) {
+    if (toId === targetId) return;
+    deleteConnection(sourceId + '-' + toId);
+    // Si target ya tiene un nodo End propio aguas abajo, no añadir otro End
+    if (nodes[toId] && nodes[toId].type === 'End') {
+      var targetAlreadyHasEnd = getDownstreamChain(targetId).some(function(did) {
+        return nodes[did] && nodes[did].type === 'End';
+      });
+      if (targetAlreadyHasEnd) {
+        // Eliminar el End duplicado del source
+        deleteNode(toId);
+        return;
+      }
+    }
+    connectNodesInternal(targetId, toId);
+  });
+
+  // Animación y eliminación del source
+  source.el.classList.add('being-merged');
+  deleteNode(sourceId);
+
+  // Reconectar End huérfano si quedó sin inputs
+  if (sourceEndId && nodes[sourceEndId]) {
+    var endNode = nodes[sourceEndId];
+    var hasInputs = endNode.inputs && endNode.inputs.length > 0;
+    if (!hasInputs) {
+      // Encontrar el último nodo del chain del target (antes de cualquier End)
+      var chain = getDownstreamChain(targetId);
+      var lastBeforeEnd = targetId;
+      for (var i = chain.length - 1; i >= 0; i--) {
+        var cn = nodes[chain[i]];
+        if (cn && cn.type !== 'End') { lastBeforeEnd = chain[i]; break; }
+      }
+      // Si el target ya tiene End al final, eliminar el huérfano
+      var lastNode = chain.length ? nodes[chain[chain.length - 1]] : null;
+      if (lastNode && lastNode.type === 'End') {
+        deleteNode(sourceEndId);
+      } else {
+        connectNodesInternal(lastBeforeEnd, sourceEndId);
+      }
+    }
+  }
+
+  updateAllConns();
+}
+
+// MERGE / SPLIT
+function markMerged(nid,charList){
+  var n=nodes[nid];if(!n)return;
+  n.mergedChars=charList.slice();
+  updateNodeHeader(n);
+}
+function unmarkMerged(nid){
+  var n=nodes[nid];if(!n)return;
+  n.mergedChars=null;
+  updateNodeHeader(n);
+}
+
+function propagateMergeDownstream(startId, mergeList) {
+  var visited = {};
+  var queue = [startId];
+  visited[startId] = true;
+
+  while (queue.length) {
+    var cur = queue.shift();
+    var n = nodes[cur]; if (!n) continue;
+
+    (n.outputs || []).forEach(function(oid) {
+      if (!visited[oid] && nodes[oid] && nodes[oid].char === nodes[startId].char) {
+        visited[oid] = true;
+        var downstream = nodes[oid];
+        // Guardar texto pre-merge si no existe ya
+        if (!downstream.preMergeText && downstream.name) {
+          downstream.preMergeText = downstream.name;
+        }
+        markMerged(oid, mergeList);
+        queue.push(oid);
+      }
+    });
+  }
+}
+
+function getLinearChain(startId,charName){
+  var chain=[],cur=startId,visited={};
+  while(cur!=null&&nodes[cur]){
+    if(visited[cur])break;visited[cur]=true;
+    var n=nodes[cur];
+    if(!belongsToTimeline(n,charName))break;
+    chain.push(cur);
+    var next=null;
+    for(var i=0;i<n.outputs.length;i++){if(belongsToTimeline(nodes[n.outputs[i]],charName)){next=n.outputs[i];break;}}
+    cur=next;
+  }
+  return chain;
+}
+
+function getDownstreamChain(startId){
+  var chain=[],visited={},startNode=nodes[startId];
+  if(!startNode)return chain;
+  var charName=startNode.char;
+  var cur=startId;
+  while(cur!=null&&nodes[cur]){
+    if(visited[cur])break;visited[cur]=true;
+    if(cur!==startId)chain.push(cur);
+    var next=null;
+    for(var i=0;i<nodes[cur].outputs.length;i++){
+      var oid=nodes[cur].outputs[i];
+      if(nodes[oid]&&nodes[oid].char===charName){next=oid;break;}
+    }
+    cur=next;
+  }
+  return chain;
+}
+
+function mergeCharacterAt(anchorNid, sourceChar, sourceStartNid) {
+  hideContextMenu();
+  if (!nodes[anchorNid] || !nodes[sourceStartNid]) return;
+  var anchor = nodes[anchorNid];
+  if (anchor.char === sourceChar) return;
+
+  pushUndo('merge timelines');
+
+  if (!anchor.preMergeText && anchor.name) anchor.preMergeText = anchor.name;
+
+  // Guardar info de origen para el split
+  anchor.mergeSourceInfo = {
+    char: sourceChar,
+    sourceNid: sourceStartNid,
+    sourceText: nodes[sourceStartNid] ? nodes[sourceStartNid].name || '' : ''
+  };
+
+  var mergeList;
+  if (anchor.mergedChars) {
+    mergeList = anchor.mergedChars.slice();
+    if (mergeList.indexOf(sourceChar) < 0) mergeList.push(sourceChar);
+  } else {
+    mergeList = [anchor.char, sourceChar];
+  }
+
+  var anchorText = anchor.name || '';
+  var srcText = nodes[sourceStartNid] ? nodes[sourceStartNid].name || '' : '';
+  if (srcText && anchorText) anchor.name = anchorText.replace(/\s*$/, '').replace(/([^.!?…])$/, '$1.') + ' ' + L('meanwhile') + ' ' + srcText;
+  else if (srcText) anchor.name = srcText;
+
+  var ta = anchor.el.querySelector('textarea');
+  if (ta) ta.value = anchor.name;
+  send('NODE_TEXT', anchorNid + ':' + anchor.name);
+
+  markMerged(anchorNid, mergeList);
+  propagateMergeDownstream(anchorNid, mergeList);
+
+  anchor.el.classList.add('merged-visual');
+  setTimeout(function() { if (nodes[anchorNid]) nodes[anchorNid].el.classList.remove('merged-visual'); }, 700);
+
+  fuseNodesIntoOne(anchorNid, sourceStartNid);
+  refreshVisibility();
+  updateAllConns();
+  // el idioma viaja con el mensaje: el backend nunca debe adivinarlo
+  send('TIMELINE_MERGE', anchorNid + ':' + anchor.char + ':' + sourceChar + ':' + sourceStartNid + ':' + narrativeLanguage);
+
+  // Re-armonizar el entorno del punto de fusión
+  requestCoherence('merge', [anchorNid]);
+}
+
+function splitCharacterAt(nid, charToSplit) {
+  pushUndo('split timeline');
+  var n = nodes[nid]; if (!n || !n.mergedChars) return;
+  if (n.mergedChars.indexOf(charToSplit) < 0) return;
+
+  var ownerChar = n.char;
+  var chain = getLinearChain(nid, ownerChar);
+
+  // Paso 1: Encontrar el punto de merge original buscando hacia atrás
+  var mergeSourceNid = null;
+  var searchChain = getLinearChain(
+    (function() { for (var k in nodes) { if (nodes[k].char === ownerChar && nodes[k].type === 'Start') return parseInt(k); } return nid; })(),
+    ownerChar
+  );
+
+  for (var i = 0; i < searchChain.length; i++) {
+    var sn = nodes[searchChain[i]];
+    if (sn && sn.mergeSourceInfo && sn.mergeSourceInfo.char === charToSplit) {
+      mergeSourceNid = sn.mergeSourceInfo.sourceNid;
+      break;
+    }
+  }
+
+  // Paso 2: Restaurar nodos del owner desde el punto de split
+  chain.forEach(function(cid) {
+    var cn = nodes[cid]; if (!cn) return;
+    var remaining = (cn.mergedChars || []).filter(function(c) { return c !== charToSplit; });
+    if (remaining.length <= 1) unmarkMerged(cid);
+    else markMerged(cid, remaining);
+
+    // Limpiar mergeSourceInfo si era de este personaje
+    if (cn.mergeSourceInfo && cn.mergeSourceInfo.char === charToSplit) {
+      cn.mergeSourceInfo = null;
+    }
+
+    if (cn.preMergeText) {
+      cn.name = cn.preMergeText;
+      cn.preMergeText = null;
+      var ta = cn.el.querySelector('textarea');
+      if (ta) ta.value = cn.name;
+      send('NODE_TEXT', cn.id + ':' + cn.name);
+    }
+  });
+
+  // Paso 3: Encontrar punto de conexión en el graph del personaje separado
+  var branchFromNid = null;
+
+  if (mergeSourceNid && nodes[mergeSourceNid] && nodes[mergeSourceNid].char === charToSplit) {
+    // Conectar DESDE el nodo fuente original en el graph del otro personaje
+    branchFromNid = mergeSourceNid;
+  } else {
+    // Fallback: buscar el último nodo Event del personaje separado
+    var lastEventNid = null;
+    for (var k in nodes) {
+      var nd = nodes[k];
+      if (nd.char === charToSplit && nd.type === 'Event') {
+        if (lastEventNid === null || nd.id > lastEventNid) lastEventNid = nd.id;
+      }
+    }
+    if (lastEventNid !== null) branchFromNid = lastEventNid;
+  }
+
+  // Paso 4: Crear nodos de la nueva rama en el graph del personaje separado.
+  // Los textos de arranque van en el idioma de la historia y quedan como
+  // adaptables: el motor de coherencia los reescribirá para que encajen.
+  var splitStartId, splitEndId;
+  suppressCoherence(function() {
+    var splitContext = n.name || '';
+    var seed = charToSplit + ' ' + L('splitsOff') + (splitContext ? ' ' + splitContext : ' ' + ownerChar);
+    splitStartId = addNode('Event', seed, 0, 0, charToSplit);
+
+    if (branchFromNid !== null) {
+      connectNodes(branchFromNid, splitStartId);
+    }
+
+    var prevSplit = splitStartId;
+    var numExtra = Math.min(chain.length - 1, 3);
+    for (var i = 0; i < numExtra; i++) {
+      var newId = addNode('Event', charToSplit + ' ' + L('continuesAlone'), 0, 0, charToSplit);
+      connectNodes(prevSplit, newId);
+      prevSplit = newId;
+    }
+    splitEndId = addNode('End', '', 0, 0, charToSplit);
+    connectNodes(prevSplit, splitEndId);
+  });
+
+  send('TIMELINE_SPLIT', nid + ':' + ownerChar + ':' + charToSplit + ':' + splitStartId);
+  refreshVisibility();
+
+  // Paso 5: re-armonizar las DOS ramas resultantes
+  requestCoherence('split', [splitStartId].concat(chain.length ? [chain[0]] : []));
+}
+
+// MERGED STORY GENERATION
+function generateMergedStory(textA, textB, charA, charB, anchorNid) {
+  if (!textA && !textB) return '';
+  if (!textA) return textB;
+  if (!textB) return textA;
+
+  // Placeholder LEGIBLE mientras llega la IA (no el prompt)
+  var placeholder = '[' + charA + '] ' + textA + ' ↔ [' + charB + '] ' + textB;
+
+  var prompt =
+    'Fuse these two narrative events into ONE coherent sentence.\n' +
+    'Character A (' + charA + '): ' + textA + '\n' +
+    'Character B (' + charB + '): ' + textB + '\n' +
+    'Write ONLY the fused sentence, without prefixes, without quotes, in the original language:';
+
+  callAI(prompt, false).then(function(mergedText) {
+    var n = nodes[anchorNid];
+    if (!n) return;
+
+    if (!mergedText) {
+      // Fallback LOCAL legible: combinar las dos frases con contexto
+      var localMerge = textA + '. Meanwhile, ' + textB;
+      n.name = localMerge;
+      var ta = n.el.querySelector('textarea');
+      if (ta) ta.value = localMerge;
+      send('NODE_TEXT', n.id + ':' + localMerge);
+      return;
+    }
+
+    var clean = mergedText
+      .replace(/^(Fusión|Merged|Result|Resultado|Combined)[:]\s*/i, '')
+      .replace(/^["'«»]|["'«»]$/g, '')
+      .trim();
+
+    pushUndo('AI merge text');
+    n.name = clean;
+    var ta = n.el.querySelector('textarea');
+    if (ta) ta.value = clean;
+    send('NODE_TEXT', n.id + ':' + clean);
+  });
+
+  return placeholder;
+}
+
+function handleMergeResult(jsonStr){
+  try{
+    var data = JSON.parse(jsonStr);
+    if(!data || !data.mergedText) return;
+    var n = nodes[data.anchorNodeId];
+    if(!n) return;
+    // Limpiar cualquier prefijo que el backend haya colado igual
+    var clean = data.mergedText
+      .replace(/^[\w\s]+&[\w\s]+:\s*/,'')   // "Siete & Nueve: "
+      .replace(/^→\s*/,'')                   // "→ "
+      .replace(/^[^a-záéíóúA-Z]+/,'')        // cualquier basura inicial
+      .trim();
+    pushUndo('AI merge text');
+    n._mergeResolved = true;
+    n.name = clean;
+    var ta = n.el.querySelector('textarea');
+    if(ta) ta.value = clean;
+    send('NODE_TEXT', n.id + ':' + clean);
+    autoResizeTextarea(ta);
+    requestCoherence('merge-text', [n.id]);
+  } catch(e){ console.error('[OmegaBrowser] handleMergeResult:', e); }
+}
+
+// FUSIÓN INTELIGENTE + REGENERACIÓN LOCAL (anterior + fusionado + siguiente)
+// El resultado se escribe SIEMPRE en el idioma del texto importado.
+function performSmartMerge(targetId, sourceId) {
+  var target = nodes[targetId];
+  var source = nodes[sourceId];
+  if (!target || !source || targetId === sourceId) return;
+
+  pushUndo('smart merge');
+
+  var textA = (target.name || '').trim();
+  var textB = (source.name || '').trim();
+
+  // El idioma de los nodos manda sobre cualquier otra cosa
+  var pairLang = detectLanguage(textA + ' ' + textB);
+  if (pairLang && !langDetectedFromSource) narrativeLanguage = pairLang;
+  var targetLang = langName();
+
+  // Une los dos textos sin generar nada nuevo, en el idioma correcto
+  function joinLiteral() {
+    if (!textA || !textB) return textA || textB;
+    return textA.replace(/\s*$/, '').replace(/([^.!?…])$/, '$1.') + ' ' + L('meanwhile') + ' ' + textB;
+  }
+
+  var mergePrompt =
+`You fuse two narrative events into ONE single, natural, fluent sentence (maximum 25 words).
+
+OUTPUT LANGUAGE (ABSOLUTE REQUIREMENT): both events are written in ${targetLang}.
+The fused sentence MUST be written in ${targetLang}, reusing their own words.
+Translating it to another language is a failure, even though these instructions are in English.
+
+Event 1: ${textA}
+Event 2: ${textB}
+
+Rules (strict - do not break them):
+- Return ONLY the fused sentence, in ${targetLang}.
+- No prefixes, no quotes, no explanations, no "Fused:".
+- Do not add facts that are not in the two events.
+- Make it read as if it was always one original event.
+
+Fused sentence:`;
+
+  // Fusionar primero físicamente
+  fuseNodesIntoOne(targetId, sourceId);
+
+  function applyMerged(finalText) {
+    var n = nodes[targetId];
+    if (!n) return false;
+    n.name = finalText;
+    var ta = n.el.querySelector('textarea');
+    if (ta) {
+      ta.value = finalText;
+      autoResizeTextarea(ta);
+    }
+    send('NODE_TEXT', targetId + ':' + finalText);
+    return true;
+  }
+
+  callAI(mergePrompt, false, {
+    validate: function(txt) {
+      return txt.length > 3 && isSameLanguage(txt);   // nunca aceptamos una traducción
+    }
+  }).then(function(mergedText) {
+    var finalText = (mergedText && mergedText.trim().length > 3) ? mergedText.trim() : joinLiteral();
+    if (!applyMerged(finalText)) return;
+    requestCoherence('merge', [targetId]);
+  }).catch(function() {
+    if (applyMerged(joinLiteral())) autoLayout();
+  });
+}
+
+
+function handleRepopulateResult(jsonStr){
+  window._repopWaitingForResponse=false;
+  if(window._repopResponseTimer){clearTimeout(window._repopResponseTimer);window._repopResponseTimer=null;}
+  try{
+    var data=JSON.parse(jsonStr);
+    if(!data||!data.beats||!data.beats.length)return;
+    pushUndo('repopulate story');
+    coherence.suppress++;
+    try {
+    var downstream=getDownstreamChain(data.startNodeId);
+    var minLen=Math.min(downstream.length,data.beats.length);
+    for(var i=0;i<minLen;i++){
+      var n=nodes[downstream[i]];if(!n)continue;
+      var clean=cleanNodeText(data.beats[i]);
+      n.name=clean;var ta=n.el.querySelector('textarea');if(ta)ta.value=clean;autoResizeTextarea(ta);
+      n.el.classList.remove('repopulating');send('NODE_TEXT',n.id+':'+clean);
+    }
+    if(data.beats.length>downstream.length){
+      var lastId=downstream.length?downstream[downstream.length-1]:data.startNodeId;
+      for(var i=downstream.length;i<data.beats.length;i++){
+        var cn=nodes[data.startNodeId]?nodes[data.startNodeId].char:activeChar;
+        var newId=addNode('Event',cleanNodeText(data.beats[i]),0,0,cn);
+        if(nodes[data.startNodeId]&&nodes[data.startNodeId].mergedChars)markMerged(newId,nodes[data.startNodeId].mergedChars);
+        connectNodes(lastId,newId);lastId=newId;
+      }
+    }
+    for(var i=minLen;i<downstream.length;i++)if(nodes[downstream[i]])nodes[downstream[i]].el.classList.remove('repopulating');
+    } finally { coherence.suppress--; }
+    autoLayout();
+  }catch(e){console.error('[OmegaBrowser] handleRepopulateResult:',e);}
+}
+
+// Motor de coherencia. Cualquier operacion sobre el grafo (escribir en un
+// nodo, crear uno, conectar, desconectar, insertar en medio, ramificar una
+// decision, separar una timeline, borrar) pide una re-armonizacion: la IA
+// reescribe solo los nodos adaptables alrededor del cambio para que la
+// timeline se lea de izquierda a derecha como una sola historia coherente.
+//
+// Reglas: un nodo que ha escrito el usuario queda bloqueado (canon) y nunca
+// se reescribe, la IA construye la coherencia a su alrededor. El idioma del
+// texto importado se conserva siempre. Si no hay IA disponible no se toca
+// nada (mejor incoherente que roto).
+var coherence = {
+  enabled: true,
+  // Espera tras la última edición. Ahora cada pasada regenera la cola entera,
+  // así que conviene no dispararla en una pausa corta al teclear.
+  DELAY: 1800,
+  WINDOW_BEFORE: 2,     // nodos previos que pueden reescribirse para enlazar
+  WINDOW_AFTER: Infinity, // la cola se re-armoniza HASTA EL FINAL de la rama
+  MAX_DEPTH: 400,       // tope de seguridad al recorrer la rama
+  MAX_SEGMENTS: 4,      // tope de ramas distintas por pasada
+  CHUNK: 8,             // nodos adaptables por llamada a la IA (colas largas se trocean)
+  MAX_ADAPT: 120,       // tope de seguridad de nodos reescritos por pasada
+  SYNOPSIS_CHARS: 1200,
+  BEAT_CHARS: 240,
+  timer: null,
+  running: false,
+  requeue: false,
+  pendingAnchors: {},
+  suppress: 0,          // >0 durante importaciones/undo: no se pide coherencia
+  status: ''
+};
+
+function suppressCoherence(fn) {
+  coherence.suppress++;
+  try { return fn(); } finally { coherence.suppress--; }
+}
+
+function setCoherenceStatus(msg) {
+  coherence.status = msg || '';
+  updateStatus();
+}
+
+function toggleCoherence() {
+  coherence.enabled = !coherence.enabled;
+  var btn = document.getElementById('btn-coherence');
+  if (btn) {
+    btn.textContent = '⚯ Coherence: ' + (coherence.enabled ? 'ON' : 'OFF');
+    btn.classList.toggle('primary', coherence.enabled);
+  }
+  setCoherenceStatus(coherence.enabled ? '' : 'coherencia automática desactivada');
+}
+
+// Acción manual ("Repopulate from here"): armoniza ya, con ventana ampliada
+// y sin esperar al debounce.
+function forceCoherence(nid) {
+  if (!nodes[nid]) return;
+  var prevEnabled = coherence.enabled;
+  coherence.enabled = true;
+  coherence.pendingAnchors[nid] = 'manual';
+  if (coherence.timer) { clearTimeout(coherence.timer); coherence.timer = null; }
+  runCoherencePass();
+  coherence.enabled = prevEnabled;
+}
+
+// Punto de entrada único: lo llaman TODAS las operaciones del grafo
+function requestCoherence(reason, nodeIds) {
+  if (!coherence.enabled || coherence.suppress > 0) return;
+  (nodeIds || []).forEach(function(id) {
+    if (nodes[id]) coherence.pendingAnchors[id] = reason || 'edit';
+  });
+  if (!Object.keys(coherence.pendingAnchors).length) return;
+
+  if (coherence.timer) clearTimeout(coherence.timer);
+  coherence.timer = setTimeout(runCoherencePass, coherence.DELAY);
+  setCoherenceStatus('coherencia pendiente…');
+}
+
+// Un nodo es adaptable si no es canon del autor y no es estructural.
+// Start guarda el nombre del personaje y End cierra la rama: son andamiaje
+// del grafo, no prosa, y reescribirlos rompe la lectura.
+function isAdaptableNode(n) {
+  return !!n && !n.locked && n.type !== 'Start' && n.type !== 'End';
+}
+
+// Recorrido de la timeline
+function timelineNext(nid, charName) {
+  var n = nodes[nid]; if (!n) return [];
+  return n.outputs.filter(function(o) { return nodes[o] && belongsToTimeline(nodes[o], charName); });
+}
+function timelinePrev(nid, charName) {
+  var n = nodes[nid]; if (!n) return null;
+  for (var i = n.inputs.length - 1; i >= 0; i--) {
+    if (nodes[n.inputs[i]] && belongsToTimeline(nodes[n.inputs[i]], charName)) return n.inputs[i];
+  }
+  return null;
+}
+
+// Segmentos a armonizar alrededor de un ancla. Una decisión con varias
+// salidas produce un segmento por rama, para que cada camino sea coherente.
+function coherenceSegments(anchorId) {
+  var a = nodes[anchorId];
+  if (!a) return [];
+  var ch = a.char;
+
+  var before = [], cur = anchorId;
+  for (var i = 0; i < coherence.WINDOW_BEFORE; i++) {
+    var p = timelinePrev(cur, ch);
+    if (p === null || before.indexOf(p) >= 0) break;
+    before.unshift(p); cur = p;
+  }
+
+  var paths = [];
+  (function walk(id, acc, depth) {
+    var outs = timelineNext(id, ch);
+    if (!outs.length || depth >= coherence.WINDOW_AFTER || depth >= coherence.MAX_DEPTH
+        || paths.length >= coherence.MAX_SEGMENTS) {
+      paths.push(acc.slice());
+      return;
+    }
+    outs.forEach(function(o) {
+      if (acc.indexOf(o) >= 0 || o === anchorId || before.indexOf(o) >= 0) { paths.push(acc.slice()); return; }
+      acc.push(o); walk(o, acc, depth + 1); acc.pop();
+    });
+  })(anchorId, [], 0);
+  if (!paths.length) paths = [[]];
+
+  return paths.map(function(after) { return before.concat([anchorId], after); });
+}
+
+// Contexto global: lo que permite reconciliar un nodo ajeno
+function storySynopsis(excludeChar) {
+  var parts = [];
+  Object.keys(characters).forEach(function(cn) {
+    var chain = getLinearChainForCharacter(cn);
+    var txt = chain
+      .map(function(id) { return nodes[id] ? cleanNodeText(nodes[id].name) : ''; })
+      .filter(function(t) { return t.length > 2; })
+      .join(' → ');
+    if (txt) parts.push((cn === excludeChar ? '[' + cn + ']' : cn) + ': ' + txt);
+  });
+  var s = parts.join('\n');
+  return s.length > coherence.SYNOPSIS_CHARS ? s.slice(0, coherence.SYNOPSIS_CHARS) + '…' : s;
+}
+
+function truncateBeat(t) {
+  var s = cleanNodeText(t || '');
+  return s.length > coherence.BEAT_CHARS ? s.slice(0, coherence.BEAT_CHARS) + '…' : s;
+}
+
+// Una pasada de armonizacion
+function runCoherencePass() {
+  coherence.timer = null;
+  if (coherence.running) { coherence.requeue = true; return; }
+
+  var anchors = Object.keys(coherence.pendingAnchors).map(Number).filter(function(id) { return nodes[id]; });
+  coherence.pendingAnchors = {};
+  if (!anchors.length) { setCoherenceStatus(''); return; }
+
+  // Segmentos únicos. Se descarta un tramo cuyos nodos adaptables ya estén
+  // todos cubiertos por otro tramo: si no, varias anclas contiguas provocan
+  // llamadas redundantes a la IA sobre los mismos nodos.
+  var candidates = [];
+  anchors.forEach(function(id) {
+    coherenceSegments(id).forEach(function(seg) {
+      var adapt = seg.filter(function(x) { return isAdaptableNode(nodes[x]); });
+      if (!adapt.length) return;                         // todo es canon o estructura
+      candidates.push({ seg: seg, adapt: adapt, key: adapt.slice().sort().join(',') });
+    });
+  });
+  candidates.sort(function(a, b) { return b.adapt.length - a.adapt.length; });
+
+  var covered = {}, segments = [];
+  candidates.forEach(function(c) {
+    if (c.adapt.every(function(x) { return covered[x]; })) return;
+    c.adapt.forEach(function(x) { covered[x] = true; });
+    segments.push(c.seg);
+  });
+  if (!segments.length) { setCoherenceStatus(''); return; }
+  segments = segments.slice(0, coherence.MAX_SEGMENTS);
+
+  // Tope de seguridad: una cola enorme se recorta y se avisa, nunca en silencio
+  var totalAdapt = 0;
+  segments = segments.map(function(seg) {
+    var out = [], used = 0;
+    for (var i = 0; i < seg.length; i++) {
+      if (isAdaptableNode(nodes[seg[i]])) {
+        if (totalAdapt + used >= coherence.MAX_ADAPT) {
+          console.log('[Coherence] tramo recortado en el nodo ' + seg[i] +
+                      ': se alcanzó el tope de ' + coherence.MAX_ADAPT + ' nodos por pasada');
+          break;
+        }
+        used++;
+      }
+      out.push(seg[i]);
+    }
+    totalAdapt += used;
+    return out;
+  }).filter(function(seg) { return seg.some(function(id) { return isAdaptableNode(nodes[id]); }); });
+  if (!segments.length) { setCoherenceStatus(''); return; }
+
+  coherence.running = true;
+  setCoherenceStatus('armonizando ' + totalAdapt + ' nodo(s) hasta el final…');
+  segments.forEach(function(seg) {
+    seg.forEach(function(id) { if (isAdaptableNode(nodes[id])) nodes[id].el.classList.add('repopulating'); });
+  });
+
+  // Se aplica tramo a tramo (y trozo a trozo): cada llamada ve ya armonizado
+  // lo anterior, que es lo que mantiene la continuidad en colas largas.
+  var applied = 0, undoPushed = false;
+  function ensureUndo() { if (!undoPushed) { pushUndo('coherence'); undoPushed = true; } }
+
+  var chain = Promise.resolve();
+  segments.forEach(function(seg) {
+    chain = chain.then(function() {
+      return harmonizeSegment(seg, ensureUndo).then(function(n) { applied += n; });
+    });
+  });
+
+  chain.then(function() {
+    segments.forEach(function(seg) {
+      seg.forEach(function(id) { if (nodes[id]) nodes[id].el.classList.remove('repopulating'); });
+    });
+    if (applied) autoLayout();
+
+    coherence.running = false;
+    setCoherenceStatus(applied ? ('coherencia aplicada a ' + applied + ' nodo(s)')
+                               : 'sin cambios de coherencia');
+    setTimeout(function() { if (!coherence.running && !coherence.timer) setCoherenceStatus(''); }, 4000);
+
+    if (coherence.requeue) { coherence.requeue = false; runCoherencePass(); }
+  });
+}
+
+function applyCoherenceNodes(list) {
+  var count = 0;
+  list.forEach(function(item) {
+    var n = nodes[item.id];
+    if (!isAdaptableNode(n)) return;                     // canon del autor o estructura
+    var txt = cleanNodeText(item.text);
+    if (!txt || txt === n.name) return;
+    n.name = txt;
+    var ta = n.el.querySelector('textarea');
+    if (ta) { ta.value = txt; autoResizeTextarea(ta); }
+    send('NODE_TEXT', n.id + ':' + txt);
+    count++;
+  });
+  return count;
+}
+
+// Parte un tramo en trozos de como mucho CHUNK nodos adaptables. Una cola
+// larga no cabe en un solo prompt (ni en una sola respuesta), así que se
+// procesa por trozos consecutivos.
+function chunkSegment(seg, maxAdapt) {
+  var chunks = [], cur = [], count = 0;
+  seg.forEach(function(id) {
+    cur.push(id);
+    if (isAdaptableNode(nodes[id])) count++;
+    if (count >= maxAdapt) { chunks.push(cur); cur = []; count = 0; }
+  });
+  if (cur.length) {
+    var hasAdapt = cur.some(function(x) { return isAdaptableNode(nodes[x]); });
+    if (chunks.length && !hasAdapt) chunks[chunks.length - 1] = chunks[chunks.length - 1].concat(cur);
+    else chunks.push(cur);
+  }
+  return chunks;
+}
+
+function harmonizeSegment(seg, ensureUndo) {
+  var owner = nodes[seg[0]] ? nodes[seg[0]].char : activeChar;
+  if (!seg.some(function(id) { return isAdaptableNode(nodes[id]); })) return Promise.resolve(0);
+
+  var chunks = chunkSegment(seg, coherence.CHUNK);
+  var applied = 0;
+  var chain = Promise.resolve();
+
+  chunks.forEach(function(chunk, i) {
+    chain = chain.then(function() {
+      // Contexto: los 2 últimos nodos del trozo anterior, ya armonizados
+      var ctx = i > 0 ? chunks[i - 1].slice(-2) : [];
+      if (chunks.length > 1) {
+        setCoherenceStatus('armonizando ' + owner + ' (' + (i + 1) + '/' + chunks.length + ')…');
+      }
+      return harmonizeChunk(owner, ctx, chunk, i, chunks.length).then(function(list) {
+        if (!list) return;
+        ensureUndo();
+        applied += suppressCoherence(function() { return applyCoherenceNodes(list); });
+      });
+    });
+  });
+
+  return chain.then(function() { return applied; });
+}
+
+function harmonizeChunk(owner, ctxIds, chunkIds, index, total) {
+  var adaptIds = chunkIds.filter(function(id) { return isAdaptableNode(nodes[id]); });
+  if (!adaptIds.length) return Promise.resolve(null);
+
+  var pos = 0;
+  function line(id, forceFixed) {
+    var n = nodes[id];
+    var adapt = !forceFixed && isAdaptableNode(n);
+    var tag = adapt ? '[ADAPT]' : '[FIXED]';
+    var body = truncateBeat(n.name) || (adapt ? '(empty)' : '');
+    return '[' + (++pos) + '] (id=' + id + ') ' + tag + ' ' + n.type + ': ' + body;
+  }
+  var lines = ctxIds.filter(function(id) { return nodes[id]; }).map(function(id) { return line(id, true); })
+                .concat(chunkIds.map(function(id) { return line(id, false); })).join('\n');
+
+  var synopsis = storySynopsis(owner);
+  var targetLang = langName();
+  var tail = (index === total - 1);
+
+  var prompt =
+    'You are keeping a branching story graph coherent. Rewrite ONLY the beats marked [ADAPT]\n' +
+    'so that reading the timeline from left to right tells ONE continuous, coherent story.\n\n' +
+    'OUTPUT LANGUAGE (ABSOLUTE REQUIREMENT): the story is written in ' + targetLang + '.\n' +
+    'Every rewritten beat MUST be written in ' + targetLang + '. Translating is a failure,\n' +
+    'even though these instructions are in English.\n\n' +
+    'NARRATIVE PERSON: ' + getNarrativePrompt(owner) + '\n' +
+    'POINT OF VIEW: this timeline belongs to ' + owner + '.\n\n' +
+    (synopsis ? 'WHOLE STORY (context only, never rewrite it):\n' + synopsis + '\n\n' : '') +
+    'TIMELINE OF ' + owner + ', in reading order' +
+      (total > 1 ? ' (part ' + (index + 1) + ' of ' + total + (index > 0 ? '; the first lines are the already-settled ending of the previous part' : '') + ')' : '') +
+      ':\n' + lines + '\n\n' +
+    'RULES (strict):\n' +
+    '- Beats marked [FIXED] are settled: the author\'s canon, or text already agreed earlier.\n' +
+    '  Never change them, never contradict them, never merely repeat them. They are the reason\n' +
+    '  the surrounding beats must adapt.\n' +
+    '- Rewrite every [ADAPT] beat so it leads naturally INTO the next beat and OUT OF the previous one.\n' +
+    '  If a [FIXED] beat introduces something unexpected, invent the connective tissue that makes it\n' +
+    '  belong in this story: motivate it before, and carry its consequences forward through every\n' +
+    '  later beat, so the change is still felt at the end of the timeline.\n' +
+    '- Keep whatever the [ADAPT] beat already said when it can be reconciled; change only what the\n' +
+    '  story needs. Do not restart the story and do not summarise it.\n' +
+    (tail ? '- These beats close the timeline: land the consequences instead of opening new threads.\n'
+          : '- The timeline continues after these beats: keep it moving, do not conclude it here.\n') +
+    '- One or two sentences per beat, same register and tense as the rest.\n' +
+    '- Do not introduce characters that do not appear in the story above.\n' +
+    '- Return EVERY [ADAPT] id, and ONLY those ids: ' + adaptIds.join(', ') + '\n\n' +
+    'Respond ONLY with this JSON, no markdown, no commentary:\n' +
+    '{"nodes":[{"id":' + adaptIds[0] + ',"text":"..."}]}';
+
+  return callAI(prompt, true, {
+    validate: function(r) { return validateCoherenceResult(r, adaptIds); }
+  }).then(function(result) {
+    if (!result || !result.nodes) {
+      console.log('[Coherence] sin respuesta utilizable para ' + chunkIds.join(','));
+      return null;
+    }
+    return result.nodes;
+  }).catch(function(e) {
+    console.log('[Coherence] error: ' + (e.message || e));
+    return null;
+  });
+}
+
+function validateCoherenceResult(result, adaptIds) {
+  if (!result || !Array.isArray(result.nodes) || !result.nodes.length) return false;
+
+  var allowed = {}, got = {};
+  adaptIds.forEach(function(id) { allowed[id] = true; });
+
+  var texts = [];
+  for (var i = 0; i < result.nodes.length; i++) {
+    var it = result.nodes[i];
+    if (!it || typeof it.text !== 'string') return false;
+    var id = Number(it.id);
+    if (!allowed[id]) {                       // tocaría un nodo bloqueado o ajeno
+      console.log('[Coherence] validación: id ' + it.id + ' fuera del tramo adaptable');
+      return false;
+    }
+    var t = it.text.trim();
+    if (t.length < 3 || t.length > 600) return false;
+    got[id] = true;
+    texts.push(t);
+  }
+
+  // Debe cubrir TODO el trozo: si falta un nodo, la cola quedaría a medias
+  // sin que nadie lo note. Mejor rechazar y probar el siguiente proveedor.
+  var missing = adaptIds.filter(function(id) { return !got[id]; });
+  if (missing.length) {
+    console.log('[Coherence] validación: faltan nodos en la respuesta (' + missing.join(', ') + ')');
+    return false;
+  }
+
+  if (!isSameLanguage(texts.join(' '))) {
+    console.log('[Coherence] validación: la respuesta cambió de idioma');
+    return false;
+  }
+  return true;
+}
+
+// DRAG-DROP MERGE, detecta cross-timeline y ejecuta mergeCharacterAt
+function findNodeAtGraphPos(gx,gy,excludeId){
+  for(var k in nodes){
+    var n=nodes[k];
+    if(n.id===excludeId)continue;
+    if(n.el.style.display==='none')continue;
+    var w=n.el.offsetWidth||NODE_W;
+    var h=n.el.offsetHeight||80;
+    if(gx>=n.x&&gx<=n.x+w&&gy>=n.y&&gy<=n.y+h)return n;
+  }
+  return null;
+}
+
+function clearDropTarget(){
+  // Función vacía - no queremos indicadores visuales de drop
+}
+
+function showCrossTimelineTargets(excludeId){
+  // No mostrar nodos de otras timelines - cada personaje tiene su propio graph
+}
+
+function hideCrossTimelineTargets(){
+  // No hay nada que ocultar - no mostramos otros timelines
+}
+
+function executeDirectMerge(draggedNode, targetNode) {
+  performSmartMerge(targetNode.id, draggedNode.id);
+}
+
+// AUTO LAYOUT
+function autoLayout(){
+  var ch=activeChar;if(!ch)return;
+  var keys=Object.keys(nodes).filter(function(k){return belongsToTimeline(nodes[k],ch);});
+  if(!keys.length)return;
+  var children={},parents={};
+  keys.forEach(function(k){var id=parseInt(k);children[id]=[];parents[id]=[];});
+  for(var k in connections){
+    var c=connections[k];
+    if(children[c.from]!==undefined&&children[c.to]!==undefined){
+      children[c.from].push(c.to);parents[c.to].push(c.from);
+    }
+  }
+  var roots=[],visited={},col={},maxCol=0,queue=[];
+  keys.forEach(function(k){var id=parseInt(k);if(!parents[id].length)roots.push(id);});
+  if(!roots.length)roots.push(parseInt(keys[0]));
+  roots.forEach(function(r){queue.push(r);col[r]=0;visited[r]=true;});
+  while(queue.length){
+    var cur=queue.shift();var d=col[cur];if(d>maxCol)maxCol=d;
+    (children[cur]||[]).forEach(function(cid){
+      if(!visited[cid]){visited[cid]=true;col[cid]=d+1;queue.push(cid);}
+      else if(col[cid]<d+1){col[cid]=d+1;if(col[cid]>maxCol)maxCol=col[cid];}
+    });
+  }
+  keys.forEach(function(k){var id=parseInt(k);if(!visited[id]){col[id]=maxCol+1;maxCol=col[id];}});
+  var columns={};
+  keys.forEach(function(k){var id=parseInt(k);var c=col[id]||0;if(!columns[c])columns[c]=[];columns[c].push(id);});
+  var spacingX=NODE_W+80,spacingY=110,startX=60;
+  for(var c=0;c<=maxCol;c++){
+    var layer=columns[c];if(!layer)continue;
+    if(c>0)layer.sort(function(a,b){
+      var pa=parents[a]&&parents[a].length&&nodes[parents[a][0]]?nodes[parents[a][0]].y:0;
+      var pb=parents[b]&&parents[b].length&&nodes[parents[b][0]]?nodes[parents[b][0]].y:0;
+      return pa-pb;
+    });
+    var offY=-(layer.length*spacingY)/2+spacingY/2+300;
+    layer.forEach(function(id,i){
+      var n=nodes[id];if(!n)return;
+      n.x=startX+c*spacingX;n.y=offY+i*spacingY;
+      n.el.style.left=n.x+'px';n.el.style.top=n.y+'px';
+      send('NODE_MOVE',n.id+':'+Math.round(n.x)+':'+Math.round(n.y));
+    });
+  }
+  updateAllConns();
+}
+
+// CHARACTER TABS
+function addCharacterTab(name){
+  var cname = name || prompt('Character name:');
+  if (!cname || characters[cname]) return;
+  if (editorHistory._recording) pushUndo('add character');
+  var col = charColors[charIdx % charColors.length];
+  charIdx++;
+  characters[cname] = { name: cname, color: col, nodeIds: [] };
+  var tab = document.createElement('div');
+  tab.className = 'char-tab';
+  tab.dataset.char = cname;
+  tab.innerHTML = '<span class="dot" style="background:' + col + '"></span>' + cname;
+  tab.onclick = function() { switchCharacter(cname, tab); };
+  document.getElementById('char-tabs').insertBefore(tab, document.getElementById('add-char-btn'));
+  if (!activeChar) switchCharacter(cname, tab);
+}
+
+function switchCharacter(name, tabEl) {
+  activeChar = name;
+  document.querySelectorAll('.char-tab').forEach(function(t) { t.classList.remove('active'); });
+  if (tabEl) tabEl.classList.add('active');
+  refreshVisibility();
+  setTimeout(function() {
+    autoLayout();
+    updateAllConns();
+    fitView();
+  }, 50);
+}
+
+// CONTEXT MENU
+var ctxGraphX=0,ctxGraphY=0,ctxNodeId=null;
+
+function showContextMenu(e, nodeId) {
+  e.preventDefault(); e.stopPropagation();
+  ctxGraphX = (e.clientX - cam.x) / cam.z;
+  ctxGraphY = (e.clientY - cam.y) / cam.z;
+  ctxNodeId = nodeId || null;
+  var n = ctxNodeId ? nodes[ctxNodeId] : null;
+  var html = '';
+
+  if (n) {
+    var nodeTitle = n.mergedChars && n.mergedChars.length > 1 ? n.mergedChars.join(' + ') : n.char;
+    html += '<div class="ctx-header">' + nodeTitle + '</div>';
+    html += '<div class="ctx-item repop-action" onclick="ctxRepopulate(' + n.id + ')">&#8635; Repopulate from here</div>';
+    if (n.type === 'End') html += '<div class="ctx-item" onclick="ctxExportTimeline(' + n.id + ')">&#8615; Export this timeline</div>';
+    html += '<div class="ctx-sep"></div>';
+  }
+
+  // Split options para nodos fusionados
+  if (n && n.mergedChars && n.mergedChars.length > 1) {
+    html += '<div class="ctx-header">Split off character</div>';
+    n.mergedChars.forEach(function(cn) {
+      if (cn === n.char) return;
+      var ch = characters[cn];
+      html += '<div class="ctx-item split-action" onclick="splitCharacterAt(' + n.id + ',\'' + cn.replace(/'/g, "\\'") + '\')"><span class="cdot" style="background:' + (ch ? ch.color : '#888') + '"></span>Split off ' + cn + ' ✂</div>';
+    });
+    html += '<div class="ctx-sep"></div>';
+  }
+
+  // NUEVO: Si hay beats importados en este timeline, mostrar opción de fusionar
+  if (n && activeChar) {
+    var importedBeats = [];
+    for (var k in nodes) {
+      var nd = nodes[k];
+      if (nd.id !== n.id && nd.char === activeChar && nd.originalChar && nd.originalChar !== activeChar && nd.el.style.display !== 'none') {
+        importedBeats.push(nd);
+      }
+    }
+    if (importedBeats.length > 0) {
+      html += '<div class="ctx-header">Fuse imported beat here</div>';
+      importedBeats.forEach(function(ib) {
+        var ch = characters[ib.originalChar];
+        var col = ch ? ch.color : '#888';
+        var label = (ib.name || ib.type).substring(0, 40);
+        html += '<div class="ctx-item merge-action" onclick="fuseImportedBeat(' + n.id + ',' + ib.id + ')"><span class="cdot" style="background:' + col + '"></span>' + ib.originalChar + ': ' + label + '</div>';
+      });
+      html += '<div class="ctx-sep"></div>';
+    }
+  }
+
+  // NUEVO: Si ESTE nodo es un beat importado, mostrar opción de fusionarlo con nodos locales
+  if (n && n.originalChar && n.originalChar !== n.char) {
+    var localNodes = [];
+    for (var k in nodes) {
+      var nd = nodes[k];
+      if (nd.id !== n.id && nd.char === activeChar && !nd.originalChar && nd.type === 'Event' && nd.el.style.display !== 'none') {
+        localNodes.push(nd);
+      }
+    }
+    if (localNodes.length > 0) {
+      html += '<div class="ctx-header">Fuse this into...</div>';
+      localNodes.forEach(function(ln) {
+        var label = (ln.name || ln.type).substring(0, 40);
+        html += '<div class="ctx-item merge-action" onclick="fuseImportedBeat(' + ln.id + ',' + n.id + ')">' + ln.char + ': ' + label + '</div>';
+      });
+      html += '<div class="ctx-sep"></div>';
+    }
+  }
+
+  html += '<div class="ctx-header">Add node</div>';
+  html += '<div class="ctx-item" onclick="ctxAddNode(\'Event\')">+ Event</div>';
+  html += '<div class="ctx-item" onclick="ctxAddNode(\'Decision\')">+ Decision</div>';
+  html += '<div class="ctx-item" onclick="ctxAddNode(\'End\')">+ End</div>';
+
+  // Insert character beat (desde espacio vacío)
+  var charNames = Object.keys(characters);
+  if (charNames.length > 1 && !n) {
+    html += '<div class="ctx-sep"></div><div class="ctx-header">Insert character beat</div>';
+    charNames.forEach(function(cname) {
+      if (cname === activeChar) return;
+      var ch = characters[cname]; var cids = ch.nodeIds; if (!cids.length) return;
+      var secId = 'ctx_sec_' + cname.replace(/\W/g, '_');
+      html += '<div class="ctx-char-header" onclick="document.getElementById(\'' + secId + '\').classList.toggle(\'open\')"><span class="cdot" style="background:' + ch.color + '"></span>' + cname + ' ▸</div>';
+      html += '<div class="ctx-char-nodes" id="' + secId + '">';
+      cids.forEach(function(sid) {
+        var sn = nodes[sid]; if (!sn) return;
+        var label = (sn.name || sn.type).substring(0, 32);
+        html += '<div class="ctx-item" onclick="ctxInsertCharacterBeat(' + sid + ',\'' + cname.replace(/'/g, "\\'") + '\')"><span class="cdot" style="background:' + ch.color + '"></span>' + label + '</div>';
+      });
+      html += '</div>';
+    });
+  }
+
+  // Merge timeline here (desde un nodo)
+  if (charNames.length > 1 && n) {
+    html += '<div class="ctx-sep"></div><div class="ctx-header">Merge timeline here</div>';
+    charNames.forEach(function(cname) {
+      if (cname === activeChar) return;
+      var ch = characters[cname]; var cids = ch.nodeIds; if (!cids.length) return;
+      var secId = 'ctx_secm_' + cname.replace(/\W/g, '_');
+      html += '<div class="ctx-char-header" onclick="document.getElementById(\'' + secId + '\').classList.toggle(\'open\')"><span class="cdot" style="background:' + ch.color + '"></span>' + cname + ' ▸</div>';
+      html += '<div class="ctx-char-nodes" id="' + secId + '">';
+      cids.forEach(function(sid) {
+        var sn = nodes[sid]; if (!sn) return;
+        var label = (sn.name || sn.type).substring(0, 32);
+        html += '<div class="ctx-item merge-action" onclick="mergeCharacterAt(' + n.id + ',\'' + cname.replace(/'/g, "\\'") + '\',' + sid + ')"><span class="cdot" style="background:' + ch.color + '"></span>' + label + '</div>';
+      });
+      html += '</div>';
+    });
+  }
+
+  ctxMenu.innerHTML = html; ctxMenu.style.display = 'block';
+  ctxMenu.style.left = e.clientX + 'px'; ctxMenu.style.top = e.clientY + 'px';
+  var r = ctxMenu.getBoundingClientRect();
+  if (r.right > window.innerWidth) ctxMenu.style.left = (window.innerWidth - r.width - 4) + 'px';
+  if (r.bottom > window.innerHeight) ctxMenu.style.top = (window.innerHeight - r.height - 4) + 'px';
+}
+function hideContextMenu(){ctxMenu.style.display='none';ctxNodeId=null;}
+function ctxAddNode(type){hideContextMenu();if(!activeChar)return;pushUndo('add node');addNode(type,'',ctxGraphX,ctxGraphY,activeChar);}
+function ctxInsertCharacterBeat(sourceNid, sourceCharName) {
+  hideContextMenu();
+  var src = nodes[sourceNid];
+  if (!src || !activeChar) return;
+
+  pushUndo('import character beat');
+
+  var nid = addNode(src.type, src.name, ctxGraphX, ctxGraphY, activeChar);
+  var n = nodes[nid];
+  if (!n) return;
+
+  n.originalChar = sourceCharName;
+  n.originalSourceNid = sourceNid; // referencia al nodo real en el graph del otro personaje
+  updateNodeHeader(n);
+  updateStatus();
+}
+function ctxRepopulate(nid){hideContextMenu();forceCoherence(nid);}
+function ctxExportTimeline(endNid){hideContextMenu();exportTimelineFromEnd(endNid);}
+
+// NODE RIGHT-CLICK ATTACH
+function attachNodeContextMenu(el,nid){
+  el.addEventListener('contextmenu',function(e){e.preventDefault();e.stopPropagation();showContextMenu(e,nid);});
+}
+var _origAddNode=addNode;
+addNode=function(type,name,x,y,charName,id){
+  var nid=_origAddNode(type,name,x,y,charName,id);
+  attachNodeContextMenu(nodes[nid].el,nid);
+  return nid;
+};
+
+// GDD PARSING
+function showParsePanel(){
+  document.getElementById('overlay-bg').style.display = 'block';
+  document.getElementById('parse-panel').style.display = 'block';
+}function hideParsePanel() {
+  document.getElementById('parse-panel').style.display = 'none';
+  document.getElementById('overlay-bg').style.display = 'none';
+  var btn = document.querySelector('#parse-panel .panel-footer .primary') ||
+            document.querySelector('#parse-panel .primary');
+  if (btn) { btn.disabled = false; btn.innerText = 'Parse & Generate'; }
+}
+function exportFullStory(){
+  var lines = [];
+  var date = new Date().toLocaleDateString();
+  lines.push('OmegaTeller - Story Export (' + date + ')');
+  lines.push('='.repeat(50));
+  lines.push('');
+  var charNames = Object.keys(characters);
+  if (!charNames.length) { alert('No characters to export.'); return; }
+  charNames.forEach(function(c) {
+    var chain = getLinearChainForCharacter(c);
+    var beats = chain
+      .map(function(nid) { return nodes[nid]; })
+      .filter(function(n) { return n && n.type !== 'Start' && n.type !== 'End' && n.name && n.name.trim().length > 0; })
+      .map(function(n) { return '  • ' + n.name.trim(); });
+    if (beats.length) {
+      lines.push('━━━ ' + c.toUpperCase() + ' ━━━');
+      lines.push('');
+      beats.forEach(function(b) { lines.push(b); });
+      lines.push('');
+    }
+  });
+  if (lines.length <= 3) { alert('Nothing to export - add some story beats first.'); return; }
+  downloadText(lines.join('\n'), 'OmegaTeller_Story.txt');
+}
+
+function exportTimelineFromEnd(endNid){
+  var n = nodes[endNid];
+  if (!n) return;
+  var charName = n.char;
+  var chain = getLinearChainForCharacter(charName);
+  var beats = chain
+    .map(function(nid) { return nodes[nid]; })
+    .filter(function(nd) { return nd && nd.type !== 'Start' && nd.type !== 'End' && nd.name && nd.name.trim().length > 0; })
+    .map(function(nd) { return nd.name.trim(); });
+  if (!beats.length) { alert('No beats to export for ' + charName + '.'); return; }
+  var date = new Date().toLocaleDateString();
+  var header = 'OmegaTeller - ' + charName + ' Timeline (' + date + ')\n' + '='.repeat(50) + '\n\n';
+  downloadText(header + beats.join('\n\n'), 'OmegaTeller_' + charName + '.txt');
+}
+
+function getLinearChainForCharacter(charName){
+  var chain=[],cur=null,visited={};
+  for(var k in nodes){if(nodes[k].char===charName&&nodes[k].type==='Start'){cur=parseInt(k);break;}}
+  if(cur===null)for(var k in nodes){if(nodes[k].char===charName){cur=parseInt(k);break;}}
+  if(cur===null)return chain;
+  while(cur!=null&&nodes[cur]){
+    if(visited[cur])break;visited[cur]=true;chain.push(cur);
+    var next=null;
+    for(var i=0;i<nodes[cur].outputs.length;i++){
+      var oid=nodes[cur].outputs[i];
+      if(nodes[oid]&&nodes[oid].char===charName){next=oid;break;}
+    }
+    cur=next;
+  }
+  return chain;
+}
+
+function downloadText(text,filename){
+  var blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;
+  a.style.display='none';document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(a.href);
+}
+
+function loadExample(){
+  document.getElementById('gdd-text').value=
+    '# Story: City Bus\n\n## Characters\n\n### John\n- Role: Student\n\n### Emily\n- Role: Barista\n\n## Story Beats\n\n## John\n1. John wakes up and gets ready for school\n2. John walks to school\n3. John attends class\n4. John leaves school\n5. John gets on the bus\n6. John meets Emily on the bus\n\n## Emily\n7. Emily finishes her shift at the cafe\n8. Emily walks to the bus stop\n9. Emily gets on the bus\n10. Emily sits next to John (only free seat)\n';
+}
+
+function parseGDD() {
+  var text = document.getElementById('gdd-text').value.trim();
+  if (!text) return;
+
+  detectNarrativeStyle(text);
+
+  var btn = document.querySelector('#parse-panel .panel-footer .primary') ||
+            document.querySelector('#parse-panel .primary');
+  if (btn) { 
+    btn.disabled = true; 
+    btn.innerText = 'Processing...'; 
+  }
+
+  var personInstr = getNarrativePrompt();   // POV global (por personaje se aplica en buildGraphFromData)
+  var targetLang = langName();
+
+  var prompt = `You are a LITERAL extractor of multi-POV narrative. DO NOT invent absolutely anything.
+
+OUTPUT LANGUAGE (ABSOLUTE REQUIREMENT): the source text below is written in ${targetLang}.
+Every single character name and every single beat MUST be written in ${targetLang}, reusing the
+author's own words. Translating any part of the output is a failure, even if these instructions
+are written in another language.
+
+ORIGINAL TEXT:
+"""${text}"""
+
+MANDATORY RULES:
+1. Identify ONLY characters that appear by name in the text.
+2. Use EXCLUSIVELY events written in the original text, keeping their original wording in ${targetLang}.
+3. DO NOT add emotions, objects or details that do not appear.
+4. Each beat = exactly 1 short sentence (maximum 25 words).
+5. Keep the beats of each character in the SAME ORDER they occur in the text, so each timeline
+   reads as one continuous, coherent story instead of disconnected fragments.
+6. ${personInstr}
+7. DO NOT mix narrative persons within the same character timeline.
+8. Narrate from the point of view of the character owner of each timeline.
+   If a character X appears in Y's timeline, describe them from outside (from Y's perspective).
+
+Respond ONLY with this exact JSON, without extra text, without markdown:
+
+{
+  "characters": [
+    {"name": "ExactName1", "beats": ["sentence1", "sentence2", ...]},
+    {"name": "ExactName2", "beats": ["sentence1", "sentence2", ...]}
+  ]
+}`;
+
+  callAI(prompt, true, { validate: function(r) { return validateParsedGDD(r, text); } })
+    .then(function(result) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = 'Parse & Generate';
+      }
+
+      if (result && result.characters) {
+        var valid = result.characters.filter(c => c && c.name && c.beats && c.beats.length >= 1);
+        if (valid.length >= 1) {
+          clearGraphInternal();
+          pushUndo('import GDD');
+          buildGraphFromData({ characters: valid });
+          hideParsePanel();
+          return;
+        }
+      }
+
+      runFallbackParse(text);
+    }).catch(function(e) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = 'Parse & Generate';
+      }
+      runFallbackParse(text);
+    });
+}
+
+// VALIDACIÓN DE LA RESPUESTA DE LA IA
+// Una respuesta solo se acepta si (a) está en el idioma del texto original
+// y (b) está anclada en el texto original (no inventada). Si no, se prueba
+// el siguiente proveedor y, en último término, el parser literal.
+function validateParsedGDD(result, sourceText) {
+  if (!result || !result.characters || !result.characters.length) return false;
+
+  var valid = result.characters.filter(function(c) {
+    return c && typeof c.name === 'string' && c.name.trim() && c.beats && c.beats.length >= 1;
+  });
+  if (!valid.length) return false;
+
+  var sourceLower = ' ' + foldAccents(String(sourceText).toLowerCase()).replace(/\s+/g, ' ') + ' ';
+
+  // (a) los nombres deben existir en el texto
+  for (var i = 0; i < valid.length; i++) {
+    var n = foldAccents(String(valid[i].name).toLowerCase().trim());
+    if (n.length < 2 || sourceLower.indexOf(n) < 0) {
+      console.log('[AI] validación: el personaje "' + valid[i].name + '" no aparece en el texto');
+      return false;
+    }
+  }
+
+  var allBeats = [];
+  valid.forEach(function(c) {
+    c.beats.forEach(function(b) { if (typeof b === 'string' && b.trim()) allBeats.push(b.trim()); });
+  });
+  if (allBeats.length < 2) return false;
+
+  // (b) idioma: el resultado debe estar en el mismo idioma que el original
+  if (!isSameLanguage(allBeats.join(' '))) {
+    console.log('[AI] validación: la respuesta cambió de idioma (se esperaba ' + narrativeLanguage + ')');
+    return false;
+  }
+
+  // (c) anclaje: las palabras significativas deben venir del texto original
+  var known = 0, total = 0;
+  allBeats.forEach(function(b) {
+    (foldAccents(b.toLowerCase()).match(/[a-z0-9']{4,}/g) || []).forEach(function(w) {
+      total++;
+      if (sourceLower.indexOf(w) >= 0) known++;
+    });
+  });
+  var grounding = total ? known / total : 0;
+  if (grounding < 0.6) {
+    console.log('[AI] validación: respuesta poco anclada en el texto (' + Math.round(grounding * 100) + '%)');
+    return false;
+  }
+
+  console.log('[AI] validación OK: ' + valid.length + ' personajes, ' + allBeats.length +
+              ' beats, anclaje ' + Math.round(grounding * 100) + '%');
+  return true;
+}
+
+function runFallbackParse(text) {
+  clearGraphInternal();
+  pushUndo('import GDD fallback');
+  var extracted = fallbackExtract(text);
+  if (!extracted.chars || !extracted.chars.length) {
+    extracted = parseFreeProseText(text);
+  }
+  if (extracted.chars && extracted.chars.length) {
+    console.log('[OmegaTeller] Fallback: ' + extracted.chars.length + ' characters');
+    buildGraphFromData({ characters: extracted.chars });
+  } else {
+    console.log('[OmegaTeller] No characters found at all');
+  }
+  hideParsePanel();
+}
+
+window.receiveParsedGDD = function(jsonData) {
+  console.log("Rork Data Received:", jsonData);
+  window._rorkWaitingForResponse = false;
+  if (window._rorkResponseTimer) clearTimeout(window._rorkResponseTimer);
+  
+  hideParsePanel(); // Cerramos el panel de importación
+
+  try {
+    // Si Unreal lo manda como string, lo parseamos
+    var data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+    
+    if (!data.characters) return;
+
+    pushUndo('Parse GDD with Rork');
+    var globalNodeCount = 0;
+
+    coherence.suppress++;
+    try {
+    data.characters.forEach(function(charEntry, charIdx) {
+      var charName = charEntry.name;
+      var lastNodeId = null;
+
+      // Si el personaje no existe, lo creamos dinámicamente
+      if (!characters[charName]) {
+          addCharacterTab(charName);
+      }
+
+      charEntry.beats.forEach(function(rawBeat) {
+        var beatText = "";
+        
+        // FIX PARA EL DOBLE JSON:
+        try {
+          var inner = JSON.parse(rawBeat);
+          beatText = inner.text || rawBeat;
+        } catch(e) { beatText = rawBeat; }
+
+        // FILTRO PARA "JOHN" (Instrucciones alucinadas)
+        if (beatText.includes("DO NOT summarize") || beatText.includes("requirements")) return;
+
+        // SOLUCIÓN AL "SOLO 2 NODOS": 
+        // Dividimos el párrafo gigante en frases individuales
+        var sentences = beatText.split(/[.!?]+(?=\s|$)/).filter(s => s.trim().length > 15);
+
+        sentences.forEach(function(sentenceText) {
+          var finalContent = cleanNodeText(sentenceText);
+          if (!finalContent) return;
+
+          // Posicionamiento en cascada
+          var x = 100 + (globalNodeCount * 260);
+          var y = 150 + (charIdx * 250);
+
+          var nid = addNode('Event', finalContent, x, y, charName);
+          
+          // Conectamos con el nodo anterior del mismo personaje
+          if (lastNodeId !== null) {
+            connectNodes(lastNodeId, nid);
+          }
+          
+          lastNodeId = nid;
+          globalNodeCount++;
+        });
+      });
+    });
+    } finally { coherence.suppress--; }
+
+    setTimeout(fitView, 500);
+    updateStatus();
+
+  } catch (e) {
+    console.error("Error en receiveParsedGDD:", e);
+  }
+};
+
+function handleRorkResult(jsonStr) {
+  window._rorkWaitingForResponse = false;
+  if (window._rorkResponseTimer) { clearTimeout(window._rorkResponseTimer); window._rorkResponseTimer = null; }
+
+  var btn = document.querySelector('#parse-panel .primary');
+  if (btn) { btn.disabled = false; btn.innerText = 'Parse & Generate'; }
+
+  try {
+    var data = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+    if (!data || !data.characters || !data.characters.length) {
+      console.warn('[OmegaBrowser] handleRorkResult: respuesta vacía o sin personajes', data);
+      return;
+    }
+    pushUndo('import GDD');
+    buildGraphFromData(data);
+    hideParsePanel();
+  } catch(e) {
+    console.error('[OmegaBrowser] handleRorkResult parse error:', e, jsonStr);
+  }
+}
+
+function buildGraphFromData(data) {
+  var chars = data.characters || [];
+  if (!chars.length) return;
+
+  // Si los beats no vienen de parseGDD (p. ej. llegan desde C++), el idioma de
+  // todo lo generado se toma igualmente del contenido recibido.
+  if (!langDetectedFromSource) {
+    var sample = [];
+    chars.forEach(function(c) { if (c && c.beats) sample = sample.concat(c.beats); });
+    if (sample.length) {
+      narrativeLanguage = detectLanguage(sample.join(' '));
+      langDetectedFromSource = true;
+      console.log('[OmegaTeller] Idioma deducido de los beats: ' + narrativeLanguage);
+      refreshAllNodeHeaders();
+    }
+  }
+
+  var wasRecording = editorHistory._recording;
+  editorHistory._recording = false;
+  chars.forEach(c => {
+    if (c && c.name && !characters[c.name]) addCharacterTab(c.name);
+  });
+  editorHistory._recording = wasRecording;
+
+  // La importación construye el grafo entero: no tiene sentido pedir
+  // coherencia nodo a nodo mientras se monta.
+  suppressCoherence(function() {
+    chars.forEach(function(c) {
+      if (!c || !c.name) return;
+      var charName = c.name;
+
+      activeChar = charName;
+      document.querySelectorAll('.char-tab').forEach(t => t.classList.remove('active'));
+      var tab = document.querySelector('.char-tab[data-char="' + charName + '"]');
+      if (tab) tab.classList.add('active');
+      refreshVisibility();
+
+      var beats = (c.beats || []).map(b => cleanNodeText(typeof b === 'string' ? b.trim() : '')).filter(t => t.length > 3);
+
+      if (beats.length === 0) return;
+
+      // Registrar POV específico de este personaje a partir de sus beats
+      registerCharacterPOV(charName, beats);
+
+      var startId = addNode('Start', charName, 0, 0, charName);
+      var prevId = startId;
+
+      beats.forEach(sb => {
+        var nid = addNode('Event', sb, 0, 0, charName);
+        var newTa = nodes[nid].el.querySelector('textarea');
+        if (newTa) autoResizeTextarea(newTa);
+        connectNodes(prevId, nid);   // conexión forzada
+        prevId = nid;
+      });
+
+      var endId = addNode('End', '', 0, 0, charName);
+      connectNodes(prevId, endId);   // End siempre conectado
+
+      autoLayout();
+    });
+  });
+
+  var firstName = chars[0] ? chars[0].name : null;
+  if (firstName) {
+    var firstTab = document.querySelector('.char-tab[data-char="' + firstName + '"]');
+    if (firstTab) switchCharacter(firstName, firstTab);
+  }
+
+  updateStatus();
+}
+
+// Nueva función para limpiar beats contaminados
+function cleanBeatText(beat){
+  if(!beat)return '';
+  
+  // Si es string, limpiar directamente
+  if(typeof beat==='string'){
+    var cleaned=beat;
+    
+    // Eliminar JSON completo incrustado
+    cleaned=cleaned.replace(/^\{[^}]*\}/, '');
+    
+    // Eliminar campos JSON específicos
+    cleaned=cleaned.replace(/\\\"text\\\":\\\"([^\\"]*)\\\"/g, '$1');
+    cleaned=cleaned.replace(/\\\"task\\\":\\\"[^\\"]*\\\"/g, '');
+    cleaned=cleaned.replace(/\\\"instructions\\\":\\\"[^\\"]*\\\"/g, '');
+    cleaned=cleaned.replace(/\\\"requirements\\\":\\{[^}]*\\}/g, '');
+    cleaned=cleaned.replace(/\\\"examples\\\":\\[[^\\]]*\\]/g, '');
+    cleaned=cleaned.replace(/\\\"[^\\]*\\\"/g, '');
+    cleaned=cleaned.replace(/\\\"[^\\]*\\\"/g, '');
+    cleaned=cleaned.replace(/\\{[^}]*\\}/g, '');
+    
+    // Eliminar instrucciones residuales
+    cleaned=cleaned.replace(/Each beat should be 1-2 sentences[^.]*\./g, '');
+    cleaned=cleaned.replace(/focusing on what THAT character experiences[^.]*\./g, '');
+    cleaned=cleaned.replace(/DO NOT summarize[^.]*\./g, '');
+    cleaned=cleaned.replace(/CRITICAL:[^.]*/g, '');
+    cleaned=cleaned.replace(/Generate SEPARATE[^.]*/g, '');
+    
+    // Limpiar caracteres de escape
+    cleaned=cleaned.replace(/\\n/g, ' ');
+    cleaned=cleaned.replace(/\\"/g, '"');
+    cleaned=cleaned.replace(/\\\\/g, '\\');
+    
+    return cleaned.trim();
+  }
+  
+  // Si es objeto JSON, extraer el campo text
+  if(typeof beat==='object' && beat.text){
+    return beat.text;
+  }
+  
+  return beat.toString();
+}
+
+// Nueva función para dividir párrafos largos en beats individuales
+function splitLongBeat(beat) {
+  if (!beat) return [];
+  beat = beat.trim();
+  if (!beat) return [];
+
+  // Si es razonablemente corta, devolver tal cual
+  if (beat.length <= 150) return [beat];
+
+  // Dividir por punto seguido (no punto final)
+  var parts = beat.split(/\.(?=\s+[A-ZÁÉÍÓÚÑ])/);
+  var result = [];
+  parts.forEach(function(p) {
+    var trimmed = p.trim();
+    // Re-añadir punto si se quitó al split
+    if (trimmed.length > 8) {
+      if (!trimmed.match(/[.!?]$/)) trimmed += '.';
+      result.push(trimmed);
+    }
+  });
+
+  if (result.length > 1) return result;
+
+  // Si no se pudo dividir por puntos, intentar por punto y coma o "y"
+  parts = beat.split(/[;]\s*/);
+  result = [];
+  parts.forEach(function(p) {
+    if (p.trim().length > 10) result.push(p.trim());
+  });
+
+  return result.length > 1 ? result : [beat];
+}
+
+function fallbackParseGDD(text){
+  console.log('[OmegaBrowser] Using improved fallback parsing...');
+  coherence.suppress++;
+  try { fallbackParseGDDInternal(text); } finally { coherence.suppress--; }
+}
+
+function fallbackParseGDDInternal(text){
+  
+  // Extraer personajes usando el formato correcto del markdown
+  var lines = text.split('\n');
+  var characters = [];
+  var currentChar = null;
+  var charBeats = {};
+  
+  // Paso 1: Extraer personajes definidos con ###
+  lines.forEach(function(line) {
+    var trimmed = line.trim();
+    if (trimmed.startsWith('### ')) {
+      var charName = trimmed.substring(4).trim();
+      if (charName && !charName.includes('Characters') && !charName.includes('Story') && !charName.includes('Beats')) {
+        characters.push(charName);
+        charBeats[charName] = [];
+        currentChar = charName;
+      }
+    }
+  });
+  
+  // Paso 2: Extraer beats por sección de personaje
+  currentChar = null;
+  lines.forEach(function(line) {
+    var trimmed = line.trim();
+    
+    // Detectar sección de personaje con ## o ###
+    if (trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
+      var sectionName = trimmed.replace(/^## |### /, '').trim();
+      if (characters.includes(sectionName)) {
+        currentChar = sectionName;
+      } else {
+        currentChar = null;
+      }
+    }
+    
+    // Extraer beats numerados
+    if (currentChar && trimmed.match(/^\d+[\.\)]\s/)) {
+      var beat = trimmed.replace(/^\d+[\.\)]\s*/, '').trim();
+      if (beat && charBeats[currentChar]) {
+        charBeats[currentChar].push(beat);
+      }
+    }
+  });
+  
+  console.log('[OmegaBrowser] Fallback extracted characters:', characters);
+  console.log('[OmegaBrowser] Fallback beats per character:', charBeats);
+  
+  // Crear el grafo con los datos extraídos
+  if (characters.length === 0) {
+    console.warn('[OmegaBrowser] No characters found, using basic parsing');
+    // Fallback ultra-básico si no se encuentran personajes
+    var sentences = text.split(/[.!?]+/).filter(function(s){ return s.trim().length > 10; });
+    sentences.forEach(function(sentence, idx) {
+      var content = sentence.trim();
+      var nid = addNode('Event', content, 100 + (idx * 250), 100, 'Unknown');
+      if (idx > 0) {
+        connectNodes(parseInt(nid) - 1, parseInt(nid));
+      }
+    });
+    updateStatus();
+    return;
+  }
+  
+  // Construir grafo con timelines individuales por personaje
+  characters.forEach(function(charName) {
+    addCharacterTab(charName);
+    var prev = addNode('Start', charName, 0, 0, charName);
+    
+    var beats = charBeats[charName] || [];
+    
+    // Si no hay beats para este personaje, crear beats básicos basados en mención
+    if (beats.length === 0) {
+      // Buscar menciones del personaje en el texto
+      var charMentions = [];
+      lines.forEach(function(line, idx) {
+        if (line.toLowerCase().includes(charName.toLowerCase()) && line.trim().length > 20) {
+          var mention = line.trim().replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '');
+          if (mention.length > 15 && mention.length < 200) {
+            charMentions.push(mention);
+          }
+        }
+      });
+      
+      // Limitar a 5 beats como máximo por personaje
+      charMentions.slice(0, 5).forEach(function(mention) {
+        var nid = addNode('Event', cleanNodeText(mention), 0, 0, charName);
+        connectNodes(prev, nid);
+        prev = nid;
+      });
+    } else {
+      // Usar beats extraídos normalmente
+      beats.forEach(function(beat) {
+        var nid = addNode('Event', cleanNodeText(beat) || '', 0, 0, charName);
+        connectNodes(prev, nid);
+        prev = nid;
+      });
+    }
+  });
+  
+  // Seleccionar primer personaje
+  if (characters.length > 0) {
+    var firstTab = document.querySelector('.char-tab[data-char="' + characters[0] + '"]');
+    if (firstTab) switchCharacter(characters[0], firstTab);
+    autoLayout();
+  }
+  
+  updateStatus();
+  console.log('[OmegaBrowser] Fallback parsing completed with', characters.length, 'characters');
+}
+
+// Vocabulario de sección: un encabezado que contenga cualquiera de estas
+// palabras describe una parte del documento, no a un personaje.
+var SECTION_WORDS = {};
+('story stories beat beats point points note notes narrative technical design ' +
+ 'mechanic mechanics gameplay overview structure system systems rule rules setting ' +
+ 'world worlds plot synopsis chapter section part parts act acts scene scenes ' +
+ 'character characters cast quest quests level levels item items enemy enemies ' +
+ 'ending endings branch branching timeline arc summary intro introduction ' +
+ 'conclusion epilogue prologue lore background objective objectives decision decisions ' +
+ 'project document example reference appendix index credits ' +
+ 'historia trama personaje personajes capitulo capitulos parte partes acto actos ' +
+ 'escena escenas nota notas mecanica mecanicas resumen estructura sistema sistemas ' +
+ 'ambientacion mundo argumento sinopsis introduccion conclusion epilogo prologo ' +
+ 'objetivo objetivos decision decisiones nivel niveles mision misiones proyecto documento'
+).split(/\s+/).forEach(function(w) { if (w) SECTION_WORDS[w] = true; });
+
+// Convierte un encabezado en nombre de personaje, o devuelve null si el
+// encabezado es en realidad un título de capítulo o de sección
+// ("II. Elena, 03:17", "Main Story Beats", "El reloj que perdió una hora").
+var SECTION_PREFIX_RE = /^(cap[íi]tulo|chapter|parte|part|acto|act|escena|scene|decisi[óo]n|decision|nivel|level|fase|phase|misi[óo]n|mission|quest)\b/i;
+
+function headerToCharacterName(rawHeader) {
+  var header = stripInlineMarkdown(rawHeader);
+  // "Act 1: The Scout's Calling" / "Decisión 2: ..." son secciones, no personajes
+  if (SECTION_PREFIX_RE.test(header)) return null;
+
+  var name = header
+    .replace(/^([IVXLCDM]+|\d+)\s*[.)\-–—:]\s*/i, '')
+    .split(/\s+[—–]\s+/)[0]          // "Elena - 03:17" -> "Elena"
+    .replace(/[.,;:!?]+$/, '')
+    .trim();
+  if (name.length < 2 || name.length > 30) return null;
+  if (/\d/.test(name)) return null;
+  var words = name.split(/\s+/);
+  if (words.length > 4) return null;                   // es una frase, no un nombre
+  if (!/^[A-ZÁÉÍÓÚÜÑ]/.test(name)) return null;
+  for (var i = 0; i < words.length; i++) {
+    if (SECTION_WORDS[foldAccents(words[i].toLowerCase().replace(/[^\wÀ-ÿ]/g, ''))]) return null;
+  }
+  return name;
+}
+
+// Ficha de personaje ("- **Role**: Protagonist"), no un beat de la historia
+var ATTR_KEY_RE = /^(Role|Rol|Age|Edad|Description|Descripci[óo]n|Personalidad|Personality|Goals?|Objetivos?|Motivaci[óo]n|Motivation|Background|Trasfondo|Arc|Arco|Appearance|Aspecto|Weakness|Debilidad|Strength|Fortaleza|Alignment|Class|Clase|Race|Raza|Species|Especie|Gender|G[ée]nero|Occupation|Oficio|Title|T[íi]tulo|Weapon|Arma|Ability|Habilidad|Name|Nombre|Traits?|Rasgos?)\s*[:：]/i;
+
+// Honoríficos: no sirven para identificar a quién menciona un beat
+var HONORIFICS = { lord:1, lady:1, sir:1, dame:1, king:1, queen:1, prince:1, princess:1,
+  captain:1, doctor:1, master:1, mister:1, miss:1, don:1, dona:1, senor:1, senora:1,
+  rey:1, reina:1, principe:1, princesa:1, capitan:1, doctor_es:1, maestro:1, maestra:1 };
+
+// Alias utilizables para detectar a quién menciona un beat suelto
+function characterAliases(fullName) {
+  var aliases = [fullName];
+  fullName.split(/\s+/).forEach(function(tok) {
+    var clean = tok.replace(/[^\wÀ-ÿ'’-]/g, '');
+    if (clean.length >= 4 && !HONORIFICS[foldAccents(clean.toLowerCase())] && aliases.indexOf(clean) < 0) {
+      aliases.push(clean);
+    }
+  });
+  return aliases;
+}
+
+// GDD estructurado: personajes declarados como encabezados con sus beats debajo.
+// Se prueban los niveles #### → ### → ## y gana el primero que produzca
+// personajes CON beats. Devuelve vacío si el documento es prosa libre.
+function fallbackExtract(text) {
+  var lines = text.split('\n');
+  var SECTION_EXCLUDE = /^#{2,4}\s*(Characters|Story|Beats|Gameplay|Setting|World|Plot|Synopsis|Personajes|Historia|Trama|Story Beats)/i;
+
+  function extractAtLevel(level) {
+    var hashes = new RegExp('^#{' + level + '}(?!#)\\s+');
+    var anyHeader = /^#{1,6}\s+/;
+    var chars = [], charMap = {}, headerNames = {};
+
+    // PASO 1: candidatos a personaje en los encabezados de este nivel
+    lines.forEach(function(line) {
+      var t = line.trim();
+      if (!hashes.test(t) || SECTION_EXCLUDE.test(t)) return;
+      var raw = t.replace(hashes, '').trim();
+      var name = headerToCharacterName(raw);
+      if (!name) return;
+      headerNames[raw] = name;
+      if (!charMap[name]) {
+        charMap[name] = { name: name, beats: [], aliases: characterAliases(name) };
+        chars.push(charMap[name]);
+      }
+    });
+    if (!chars.length) return [];
+
+    // PASO 2: beats por sección
+    var currentSection = null;
+    lines.forEach(function(line) {
+      var t = line.trim();
+      if (anyHeader.test(t)) {
+        var raw = t.replace(anyHeader, '').trim();
+        // el encabezado abre la sección de un personaje sólo si ese encabezado
+        // dio lugar a un personaje en el PASO 1
+        currentSection = (headerNames[raw] && charMap[headerNames[raw]]) ? headerNames[raw] : null;
+        return;
+      }
+      if (/^\d+[.)]\s/.test(t)) {
+        var numbered = t.replace(/^\d+[.)]\s*/, '').trim();
+        if (!numbered || numbered.length < 5) return;
+        if (currentSection) {
+          charMap[currentSection].beats.push(numbered);
+        } else {
+          // beat bajo una sección genérica ("Act 1"): pertenece al personaje
+          // que menciona primero, por nombre completo o por apellido/nombre
+          var lower = foldAccents(numbered.toLowerCase());
+          var owner = null, bestPos = Infinity;
+          chars.forEach(function(c) {
+            c.aliases.forEach(function(alias) {
+              var pos = lower.indexOf(foldAccents(alias.toLowerCase()));
+              if (pos >= 0 && pos < bestPos) { bestPos = pos; owner = c.name; }
+            });
+          });
+          if (owner) charMap[owner].beats.push(numbered);
+        }
+        return;
+      }
+      if (t.indexOf('- ') === 0 && currentSection) {
+        var bullet = stripInlineMarkdown(t.substring(2));
+        if (bullet.length > 5 && !ATTR_KEY_RE.test(bullet)) charMap[currentSection].beats.push(bullet);
+      }
+    });
+
+    return chars.filter(function(c) { return c.beats.length > 0; });
+  }
+
+  var chars = [];
+  for (var level = 4; level >= 2 && !chars.length; level--) chars = extractAtLevel(level);
+
+  console.log('[OmegaTeller] fallbackExtract: ' + chars.length + ' personajes con beats estructurados');
+  return { chars: chars };
+}
+// PARSER LITERAL DE PROSA
+// Extrae líneas de tiempo por personaje respetando el ORDEN del texto y
+// la CONTINUIDAD de cada escena. No inventa nada y no traduce nada: cada
+// nodo es texto literal del documento importado.
+
+// Palabras que abren frase en mayúscula pero nunca son un personaje.
+var PROSE_STOPWORDS = (
+  // es
+  'a e y o u ni de en el la los las un una unos unas del al lo le les se me te nos su sus mi mis tu tus ' +
+  'ha han he has hay va van ya si no sea sean ser estar hacer ' +
+  'y o u ni que quien quienes cual cuales cuyo cuya como cuando donde adonde mientras ' +
+  'aunque porque pues si sino pero sin con para por segun sobre bajo tras entre hasta ' +
+  'desde hacia contra durante ante despues antes ahora luego entonces siempre nunca jamas ' +
+  'tambien tampoco todo toda todos todas nada nadie ninguno ninguna algo alguien alguno ' +
+  'cada ambos otro otra otros otras mismo misma este esta esto estos estas ese esa eso ' +
+  'esos esas aquel aquella aquello dentro fuera encima debajo arriba abajo cerca lejos ' +
+  'solo solamente quiza quizas acaso tal vez muy mas menos bien mal asi aqui alli ahi ' +
+  'era eran fue fueron sera seran es son habia habian hay hubo tenia tenian tiene tienen ' +
+  'estaba estaban esta estan puede pueden podia podian debe deben queria querian ' +
+  'primero segundo tercero cuarto quinto sexto ultimo final capitulo parte acto escena ' +
+  'silencio nunca cinco cuatro tres dos uno diez cien mil miles ' +
+  // en
+  'the and but for nor yet so a an of to in on at by from with without into onto about ' +
+  'this that these those there here then than when where while because although though ' +
+  'if unless until after before during since again once only just also too very more most ' +
+  'all any both each few many some such no not nothing nobody none other another same ' +
+  'he she it they we you i him her them us his hers its their our your my mine ours yours ' +
+  'was were is are be been being has have had do does did will would can could shall ' +
+  'should may might must chapter part act scene first second third last final story ' +
+  'characters character beats role setting gameplay plot synopsis overview world ' +
+  // pt / fr / it / de openers frecuentes
+  'nao voce entao ele ela tambem ate ja muito nos dos das isso aqui dele dela foi ' +
+  'les des une est dans pour qui avec plus elle mais leur etre tout etait nous vous cette ' +
+  'gli della degli perche sono essere molto anche quando questo quella nella dei delle ' +
+  'der die das und ist nicht ein eine mit auf fur sich aber als von zu dass war waren'
+).split(/\s+/);
+var PROSE_STOPSET = {};
+PROSE_STOPWORDS.forEach(function(w) { if (w) PROSE_STOPSET[w] = true; });
+
+function foldAccents(s) {
+  return String(s || '')
+    .replace(/[áàäâã]/g, 'a').replace(/[éèëê]/g, 'e').replace(/[íìïî]/g, 'i')
+    .replace(/[óòöôõ]/g, 'o').replace(/[úùüû]/g, 'u').replace(/ñ/g, 'n').replace(/ç/g, 'c');
+}
+function isStopWord(word) { return !!PROSE_STOPSET[foldAccents(String(word).toLowerCase())]; }
+
+// Quita el marcado inline conservando el texto tal cual lo escribió el autor
+function stripInlineMarkdown(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/`{1,3}([^`]*)`{1,3}/g, '$1')
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(^|[\s(¡¿"'])\*([^*\n]+)\*/g, '$1$2')
+    .replace(/(^|[\s(¡¿"'])_([^_\n]+)_/g, '$1$2')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Divide el documento en escenas usando encabezados markdown y separadores
+function segmentScenes(text) {
+  var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  var scenes = [], cur = { title: '', lines: [] };
+  lines.forEach(function(raw) {
+    var t = raw.trim();
+    if (!t) return;
+    if (/^([-*_=]\s*){3,}$/.test(t)) {                       // --- / *** / ___
+      if (cur.lines.length) { scenes.push(cur); cur = { title: '', lines: [] }; }
+      return;
+    }
+    var h = t.match(/^(#{1,6})\s+(.*)$/);
+    if (h) {
+      if (cur.lines.length) scenes.push(cur);
+      cur = { title: stripInlineMarkdown(h[2]), lines: [] };
+      return;
+    }
+    cur.lines.push(t);
+  });
+  if (cur.lines.length) scenes.push(cur);
+  return scenes;
+}
+
+var PROSE_ABBR = /(^|\s)(sr|sra|srta|dr|dra|mr|mrs|ms|st|prof|etc|vs|ej|p\.?\s?ej|no|núm|num|fig|cap)\.$/i;
+
+// Segmentación de frases sin lookbehind (compatible con el CEF de UE) y sin
+// romper horas (03:17), iniciales ni abreviaturas.
+function splitProseSentences(line) {
+  var text = stripInlineMarkdown(
+    String(line || '')
+      .replace(/^>\s?/, '')
+      .replace(/^[-*+]\s+/, '')
+      .replace(/^\d+[.)]\s+/, '')
+  );
+  if (!text) return [];
+
+  var out = [], cur = '';
+  for (var i = 0; i < text.length; i++) {
+    cur += text[i];
+    if ('.!?…'.indexOf(text[i]) < 0) continue;
+    while (i + 1 < text.length && '.!?…»”"\')]'.indexOf(text[i + 1]) >= 0) cur += text[++i];
+    var next = text[i + 1];
+    if (next !== undefined && !/\s/.test(next)) continue;   // 3.14, www.x.y
+    var trimmed = cur.trim();
+    if (/(^|\s)[A-ZÁÉÍÓÚÑ]\.$/.test(trimmed)) continue;      // inicial "J."
+    if (PROSE_ABBR.test(trimmed)) continue;                  // abreviatura
+    if (trimmed) out.push(trimmed);
+    cur = '';
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out.filter(function(s) { return s.replace(/[^\wÀ-ÿ]/g, '').length > 1; });
+}
+
+// Detecta personajes exigiendo que el nombre actúe como SUJETO de alguna frase.
+// Eso descarta los falsos positivos clásicos (topónimos, adverbios en mayúscula
+// al inicio de frase, "Era", "Dentro", "Todos"...).
+function detectProseCharacters(scenes) {
+  // Mínimo 3 caracteres: descarta preposiciones capitalizadas al abrir frase
+  var NAME_RE = /^[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ'’-]{2,}$/;
+  var stats = {};   // nombre corto -> { mentions, subjectHits, titleHits, longForms:{} }
+
+  function bump(name, field, amount) {
+    if (!stats[name]) stats[name] = { name: name, mentions: 0, subjectHits: 0, titleHits: 0, longForms: {} };
+    stats[name][field] += (amount === undefined ? 1 : amount);
+    return stats[name];
+  }
+
+  scenes.forEach(function(scene) {
+    var pool = [];
+    if (scene.title) pool.push({ text: scene.title, isTitle: true });
+    scene.lines.forEach(function(line) {
+      splitProseSentences(line).forEach(function(s) { pool.push({ text: s, isTitle: false }); });
+    });
+
+    pool.forEach(function(entry) {
+      var tokens = entry.text.split(/[\s"“”«»(),;:—–\-]+/).filter(Boolean);
+
+      // Posición de sujeto = primer token con contenido, saltando conjunciones y
+      // adverbios de apertura ("Y Elena abrió...", "Entonces Tomás respondió...")
+      var subjectIndex = 0;
+      while (subjectIndex < tokens.length &&
+             isStopWord(tokens[subjectIndex].replace(/[.!?…]+$/, ''))) subjectIndex++;
+
+      for (var i = 0; i < tokens.length; i++) {
+        var word = tokens[i].replace(/[.!?…]+$/, '');
+        if (!NAME_RE.test(word) || isStopWord(word)) continue;
+
+        // nombre compuesto: tokens capitalizados consecutivos ("Elena Voss")
+        var full = word, j = i + 1;
+        while (j < tokens.length) {
+          var nxt = tokens[j].replace(/[.!?…]+$/, '');
+          if (!NAME_RE.test(nxt) || isStopWord(nxt)) break;
+          full += ' ' + nxt; j++;
+        }
+
+        var st = bump(word, 'mentions');
+        if (full !== word) st.longForms[full] = (st.longForms[full] || 0) + 1;
+        if (entry.isTitle) bump(word, 'titleHits');
+
+        // sujeto: ocupa la posición de sujeto y va seguido de una palabra en
+        // minúscula (el verbo)
+        var after = tokens[j];
+        if (!entry.isTitle && i === subjectIndex && after && /^[a-záéíóúüñ]/.test(after)) bump(word, 'subjectHits');
+
+        i = j - 1;
+      }
+    });
+  });
+
+  var chars = Object.keys(stats)
+    .map(function(k) { return stats[k]; })
+    .filter(function(c) {
+      if (c.titleHits > 0 && c.mentions >= 2) return true;          // nombrado en un encabezado
+      return c.subjectHits >= 2 && c.mentions >= 3;                 // actúa como sujeto de forma estable
+    })
+    .sort(function(a, b) { return (b.subjectHits - a.subjectHits) || (b.mentions - a.mentions); })
+    .slice(0, 8);
+
+  // Alias: nombre corto + forma larga si el texto la usa ("Elena" / "Elena Voss")
+  chars.forEach(function(c) {
+    c.aliases = [c.name];
+    Object.keys(c.longForms).forEach(function(lf) { if (c.aliases.indexOf(lf) < 0) c.aliases.push(lf); });
+    c.aliases.sort(function(a, b) { return b.length - a.length; });
+  });
+
+  return chars;
+}
+
+// Personaje que abre la frase (sujeto) o, en su defecto, el primero mencionado
+function proseSubjectOf(sentence, chars, subjectOnly) {
+  var best = null, bestPos = Infinity;
+  for (var i = 0; i < chars.length; i++) {
+    for (var a = 0; a < chars[i].aliases.length; a++) {
+      var pos = sentence.indexOf(chars[i].aliases[a]);
+      if (pos < 0) continue;
+      if (subjectOnly && pos > 2) continue;
+      if (pos < bestPos) { bestPos = pos; best = chars[i].name; }
+    }
+  }
+  return best;
+}
+
+// Agrupa frases consecutivas en beats legibles (sin cortar por la mitad ni
+// dejar nodos de tres palabras). Texto literal, unido en orden.
+// `chunks` es una lista de escenas: NUNCA se mezclan dos escenas en un beat.
+function groupProseBeats(chunks, maxBeats) {
+  function packChunk(sentences, minChars, maxSentences) {
+    var beats = [], buf = [], len = 0;
+    sentences.forEach(function(s) {
+      buf.push(s); len += s.length + 1;
+      if (len >= minChars || buf.length >= maxSentences) { beats.push(buf.join(' ')); buf = []; len = 0; }
+    });
+    if (buf.length) {
+      // una cola muy corta se pega al beat anterior de LA MISMA escena
+      if (beats.length && buf.join(' ').length < 40) beats[beats.length - 1] += ' ' + buf.join(' ');
+      else beats.push(buf.join(' '));
+    }
+    return beats;
+  }
+
+  function pack(minChars, maxSentences) {
+    var out = [];
+    chunks.forEach(function(sentences) {
+      if (sentences.length) out = out.concat(packChunk(sentences, minChars, maxSentences));
+    });
+    return out;
+  }
+
+  var minChars = 90, maxSentences = 3, beats = pack(minChars, maxSentences);
+  while (beats.length > maxBeats && minChars < 700) {
+    minChars = Math.round(minChars * 1.5);
+    maxSentences += 2;
+    beats = pack(minChars, maxSentences);
+  }
+  return beats;
+}
+
+function parseFreeProseText(text) {
+  var scenes = segmentScenes(text);
+  if (!scenes.length) return { chars: [] };
+
+  var chars = detectProseCharacters(scenes);
+  if (!chars.length) {
+    console.log('[OmegaTeller] parseFreeProseText: no se detectó ningún personaje');
+    return { chars: [] };
+  }
+  console.log('[OmegaTeller] parseFreeProseText personajes: ' +
+    chars.map(function(c) { return c.name + '(m' + c.mentions + '/s' + c.subjectHits + ')'; }).join(', '));
+
+  // Por personaje, una lista de escenas (cada escena = lista de frases en orden)
+  var charScenes = {}, prominence = {};
+  chars.forEach(function(c) {
+    charScenes[c.name] = [];
+    prominence[c.name] = c.subjectHits * 2 + c.mentions;
+  });
+
+  // Cada escena pertenece ENTERA a un POV: así la línea de tiempo mantiene
+  // continuidad narrativa en lugar de saltar de frase suelta en frase suelta.
+  var lastOwner = null;
+  scenes.forEach(function(scene) {
+    var sentences = [];
+    scene.lines.forEach(function(line) {
+      splitProseSentences(line).forEach(function(s) { sentences.push(s); });
+    });
+    if (!sentences.length) return;
+
+    // 1) personaje nombrado en el encabezado de la escena
+    var owner = scene.title ? proseSubjectOf(scene.title, chars, false) : null;
+
+    // 2) personaje que más veces actúa como sujeto dentro de la escena.
+    //    Los empates los rompe el protagonismo global, no el orden de aparición.
+    if (!owner) {
+      var score = {};
+      sentences.forEach(function(s) {
+        var subj = proseSubjectOf(s, chars, true);
+        if (subj) score[subj] = (score[subj] || 0) + 1;
+      });
+      var bestScore = 0;
+      Object.keys(score).forEach(function(k) {
+        var weighted = score[k] + (prominence[k] || 0) * 1e-4;
+        if (weighted > bestScore) { bestScore = weighted; owner = k; }
+      });
+    }
+
+    // 3) primer personaje mencionado en la escena
+    if (!owner) {
+      for (var i = 0; i < sentences.length && !owner; i++) owner = proseSubjectOf(sentences[i], chars, false);
+    }
+
+    // 4) continuidad con la escena anterior
+    if (!owner) owner = lastOwner;
+    if (!owner || !charScenes[owner]) return;
+
+    charScenes[owner].push(sentences);
+    lastOwner = owner;
+  });
+
+  // Un personaje sin escena propia conserva, en orden, las frases donde actúa
+  chars.forEach(function(c) {
+    if (charScenes[c.name].length) return;
+    scenes.forEach(function(scene) {
+      var own = [];
+      scene.lines.forEach(function(line) {
+        splitProseSentences(line).forEach(function(s) {
+          if (proseSubjectOf(s, chars, true) === c.name) own.push(s);
+        });
+      });
+      if (own.length) charScenes[c.name].push(own);
+    });
+  });
+
+  var result = chars
+    .map(function(c) { return { name: c.name, beats: groupProseBeats(charScenes[c.name], 40) }; })
+    .filter(function(c) { return c.beats.length > 0; });
+
+  console.log('[OmegaTeller] parseFreeProseText resultado: ' +
+    result.map(function(c) { return c.name + '(' + c.beats.length + ')'; }).join(', '));
+
+  return { chars: result };
+}
+
+
+function clearGraphInternal(){
+  coherence.pendingAnchors={};
+  if(coherence.timer){clearTimeout(coherence.timer);coherence.timer=null;}
+  setCoherenceStatus('');
+  for(var k in connections)if(connections[k].el)connections[k].el.remove();
+  for(var k in nodes)if(nodes[k].el)nodes[k].el.remove();
+  nodes={};connections={};selected={};nextId=0;
+  document.querySelectorAll('.char-tab').forEach(function(t){t.remove();});
+  characters={};charIdx=0;activeChar=null;
+  _mergeExecuted=false;
+  updateStatus();
+}
+function clearGraph(){pushUndo('clear graph');clearGraphInternal();}
+
+function fitView(){
+  var keys=Object.keys(nodes).filter(function(k){return nodes[k].el.style.display!=='none';});
+  if(!keys.length)return;
+  var minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  keys.forEach(function(k){
+    var n=nodes[k],w=n.el.offsetWidth||NODE_W,h=n.el.offsetHeight||80;
+    minX=Math.min(minX,n.x);minY=Math.min(minY,n.y);
+    maxX=Math.max(maxX,n.x+w);maxY=Math.max(maxY,n.y+h);
+  });
+  var wrap=document.getElementById('canvas-wrap'),pad=80;
+  var w=maxX-minX+pad*2,h=maxY-minY+pad*2;
+  cam.z=Math.min(wrap.clientWidth/w,wrap.clientHeight/h,1.3);
+  cam.z=Math.max(cam.z,0.15);
+  cam.x=(wrap.clientWidth-(maxX+minX)*cam.z)/2;
+  cam.y=(wrap.clientHeight-(maxY+minY)*cam.z)/2+20;
+  applyCamera();
+}
+
+function updateStatus(){
+  var nc=Object.keys(nodes).length,cc=Object.keys(connections).length;
+  var label='Nodes: '+nc+' | Links: '+cc;
+  if(activeChar)label=activeChar+' - '+label;
+  var hu=editorHistory.undoStack.length,hr=editorHistory.redoStack.length;
+  if(hu>0||hr>0)label+=' | History: '+hu+'/'+hr;
+  if(coherence.status)label+=' | ⚯ '+coherence.status;
+  document.getElementById('status').textContent=label;
+  updateUndoButtons();
+}
+
+// GLOBAL MOUSE EVENTS
+document.addEventListener('mousemove',function(e){
+  if(drag.active&&drag.node){
+    var n=drag.node;
+    n.x=(e.clientX-cam.x)/cam.z-drag.ox;
+    n.y=(e.clientY-cam.y)/cam.z-drag.oy;
+    n.el.style.left=n.x+'px';n.el.style.top=n.y+'px';
+    updateAllConns();
+  }
+
+  if(conn.active&&conn.fromId!==null){
+    var a=nodes[conn.fromId];if(!a)return;
+    var p1=getPortOut(a);
+    var rect=document.getElementById('canvas-wrap').getBoundingClientRect();
+    var mx=(e.clientX-rect.left-cam.x)/cam.z;
+    var my=(e.clientY-rect.top-cam.y)/cam.z;
+    var dx=mx-p1.x,cpx=Math.max(Math.abs(dx)*0.45,50);
+    tempConn.setAttribute('d','M'+p1.x+' '+p1.y+' C'+(p1.x+cpx)+' '+p1.y+','+(mx-cpx)+' '+my+','+mx+' '+my);
+  }
+
+  if(pan.active){
+    cam.x+=e.clientX-pan.sx;cam.y+=e.clientY-pan.sy;
+    pan.sx=e.clientX;pan.sy=e.clientY;
+    applyCamera();
+  }
+});
+
+
+
+document.addEventListener('mouseup', function(e) {
+  if (drag.active && drag.node) {
+    drag.node.el.classList.remove('dragging');
+    hideCrossTimelineTargets();
+
+    var moved = Math.abs(drag.node.x - drag.startX) > 4 || Math.abs(drag.node.y - drag.startY) > 4;
+    if (moved) {
+      var curX = drag.node.x, curY = drag.node.y;
+      drag.node.x = drag.startX; drag.node.y = drag.startY;
+      drag.node.el.style.left = drag.startX + 'px'; drag.node.el.style.top = drag.startY + 'px';
+      pushUndo('move node');
+      drag.node.x = curX; drag.node.y = curY;
+      drag.node.el.style.left = curX + 'px'; drag.node.el.style.top = curY + 'px';
+    }
+
+    send('NODE_MOVE', drag.node.id + ':' + Math.round(drag.node.x) + ':' + Math.round(drag.node.y));
+
+    if (!_mergeExecuted) {
+      var gx = (e.clientX - cam.x) / cam.z;
+      var gy = (e.clientY - cam.y) / cam.z;
+      var targetNode = findNodeAtGraphPos(gx, gy, drag.node.id);
+
+      if (targetNode && targetNode.id !== drag.node.id) {
+        var sameChar = (drag.node.char === targetNode.char);
+        var isImported = drag.node.originalChar && drag.node.originalChar !== drag.node.char;
+        var targetIsImported = targetNode.originalChar && targetNode.originalChar !== targetNode.char;
+
+        if (sameChar || e.altKey || isImported || targetIsImported) {
+          _mergeExecuted = true;
+
+          if (isImported || targetIsImported) {
+            if (isImported) fuseImportedBeat(targetNode.id, drag.node.id);
+            else fuseImportedBeat(drag.node.id, targetNode.id);
+          } else {
+            executeDirectMerge(drag.node, targetNode);
+          }
+        }
+      }
+    }
+
+    drag.active = false;
+    drag.node = null;
+  }
+
+  if (conn.active) {
+    document.querySelectorAll('.port.active').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.omega-node.conn-target').forEach(function(n) { n.classList.remove('conn-target'); });
+    if (conn.targetId !== null && conn.fromId !== null && conn.targetId !== conn.fromId) {
+      pushUndo('connect');
+      connectNodes(conn.fromId, conn.targetId);
+    }
+  }
+  conn.active = false; conn.fromId = null; conn.targetId = null;
+  tempConn.style.display = 'none';
+  pan.active = false;
+});
+
+document.getElementById('canvas-wrap').addEventListener('mousedown',function(e){
+  hideContextMenu();
+  if(e.target===this||e.target.id==='nodes-layer'){
+    if(e.button===1||e.shiftKey){pan.active=true;pan.sx=e.clientX;pan.sy=e.clientY;e.preventDefault();}
+    else if(e.button===0){clearSel();}
+  }
+});
+
+document.getElementById('canvas-wrap').addEventListener('contextmenu',function(e){
+  var isCanvas=e.target===document.getElementById('canvas-wrap')||
+               e.target===nodesEl||
+               (e.target.closest&&e.target.closest('#nodes-layer')&&!e.target.closest('.omega-node'));
+  if(isCanvas){e.preventDefault();showContextMenu(e,null);}
+});
+
+document.addEventListener('mousedown',function(e){
+  if(!ctxMenu.contains(e.target))hideContextMenu();
+});
+
+document.addEventListener('keydown',function(e){
+  /* Undo/Redo funciona también dentro de textareas */
+  var inInput=e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT';
+  if((e.key==='z'||e.key==='Z')&&(e.ctrlKey||e.metaKey)&&!e.shiftKey){e.preventDefault();undo();return;}
+  if((e.key==='y'||e.key==='Y')&&(e.ctrlKey||e.metaKey)){e.preventDefault();redo();return;}
+  if((e.key==='z'||e.key==='Z')&&(e.ctrlKey||e.metaKey)&&e.shiftKey){e.preventDefault();redo();return;}
+  if(inInput)return;
+  if(e.key==='Delete'||e.key==='Backspace'){
+    var selKeys=Object.keys(selected);
+    if(selKeys.length){pushUndo('delete nodes');selKeys.forEach(function(id){deleteNode(parseInt(id));});}
+  }
+  if(e.key==='a'&&(e.ctrlKey||e.metaKey)){e.preventDefault();for(var k in nodes)if(nodes[k].el.style.display!=='none')selectNode(parseInt(k));}
+  if(e.key==='l'||e.key==='L')autoLayout();
+});
+
+document.getElementById('canvas-wrap').addEventListener('wheel',function(e){
+  e.preventDefault();
+  var rect=e.currentTarget.getBoundingClientRect();
+  var mx=e.clientX-rect.left,my=e.clientY-rect.top,oldZ=cam.z;
+  cam.z*=(e.deltaY>0)?0.92:1.08;
+  cam.z=Math.max(0.1,Math.min(3,cam.z));
+  cam.x=mx-(mx-cam.x)*(cam.z/oldZ);
+  cam.y=my-(my-cam.y)*(cam.z/oldZ);
+  applyCamera();
+},{passive:false});
+
+updateStatus();
+</script>
+</body>
+</html>
