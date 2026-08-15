@@ -1,5 +1,8 @@
 # OmegaTeller
 
+<img width="1902" height="1019" alt="image" src="https://github.com/user-attachments/assets/61240ffa-1a2b-4aa2-a97c-42b7b5aebed2" />
+
+
 Narrative design plugin for Unreal Engine 5.8. It parses a Game Design Document, extracts the characters that appear in it, and builds a branching story tree per character as a node graph you can edit by hand: merge two beats into one, split a timeline into a new branch, insert an event, delete a node, and the surrounding nodes get rewritten so the story still reads as one coherent thread.
 
 The editor runs inside Unreal as an embedded web view (HTML5 canvas, drag and drop, zoom and pan), not a Slate graph. All the narrative logic (parsing, merging, coherence pass) lives in C++ on the Unreal side; the browser only renders the graph and sends user actions back.
