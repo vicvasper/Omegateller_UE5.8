@@ -7,6 +7,8 @@ Narrative design plugin for Unreal Engine 5.8. It parses a Game Design Document,
 
 The editor runs inside Unreal as an embedded web view (HTML5 canvas, drag and drop, zoom and pan), not a Slate graph. All the narrative logic (parsing, merging, coherence pass) lives in C++ on the Unreal side; the browser only renders the graph and sends user actions back.
 
+**Status: experimental.** The plugin is marked as experimental in `OmegaTellerPlugin.uplugin` (Unreal will warn you when enabling it). Core parsing, merging, and export work, but expect rough edges, especially around AI coherence quality with smaller local models. Issues and pull requests are welcome.
+
 ## AI backend
 
 OmegaTeller ships with its own local language model, so it works out of the box without any account, API key, or network access. On first launch it starts a small bundled inference server (llama.cpp) with a lightweight instruction-tuned model, and every parse, merge, split, and repopulate goes through it.

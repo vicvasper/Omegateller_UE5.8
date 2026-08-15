@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "0.1.0-experimental",
 	"FriendlyName": "OmegaTellerPlugin",
-	"Description": "Narrative tree generator with AI integration for Unreal Engine",
+	"Description": "Narrative tree generator with a bundled local AI backend for Unreal Engine. Experimental, expect rough edges.",
 	"Category": "Editor",
 	"CreatedBy": "@Vicvasper",
 	"CreatedByURL": "",
@@ -12,7 +12,7 @@
 	"SupportURL": "",
 	"CanContainContent": true,
 	"IsBetaVersion": false,
-	"IsExperimentalVersion": false,
+	"IsExperimentalVersion": true,
 	"Installed": false,
 	"Modules": [
 		{
